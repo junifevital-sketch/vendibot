@@ -130,6 +130,14 @@
       margin-bottom: 20px;
     }
 
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
     .topbar h2 {
       margin: 0 0 6px;
       font-size: clamp(1.55rem, 2vw, 2.2rem);
@@ -471,6 +479,17 @@
       text-align: right;
     }
 
+    .locale-row {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 14px;
+    }
+
+    .locale-select {
+      width: auto;
+      min-width: 148px;
+    }
+
     .link-btn {
       border: 0;
       background: transparent;
@@ -533,6 +552,16 @@
         display: block;
       }
 
+      .top-actions {
+        justify-content: stretch;
+        margin-top: 14px;
+      }
+
+      .top-actions .input,
+      .top-actions .btn {
+        width: 100%;
+      }
+
       .grid-two,
       .metrics {
         grid-template-columns: 1fr;
@@ -567,6 +596,15 @@
 
     <main class="auth-panel">
       <form id="authForm" class="auth-card">
+        <div class="locale-row">
+          <select id="authUiLanguage" class="input locale-select" aria-label="Interface language">
+            <option value="pt">Portugues</option>
+            <option value="en">English</option>
+            <option value="nl">Nederlands</option>
+            <option value="es">Espanol</option>
+          </select>
+        </div>
+
         <h2 id="authTitle">Entrar</h2>
         <p id="authSubtitle">Acesse seu painel Vendibot.</p>
 
@@ -630,7 +668,15 @@
           <h2>Painel de criação</h2>
           <p>Faça upload das fotos, descreva o produto e gere um anúncio pronto para publicar.</p>
         </div>
-        <button id="upgradeButton" class="btn btn-secondary" type="button">Upgrade Pro</button>
+        <div class="top-actions">
+          <select id="appUiLanguage" class="input locale-select" aria-label="Interface language">
+            <option value="pt">Portugues</option>
+            <option value="en">English</option>
+            <option value="nl">Nederlands</option>
+            <option value="es">Espanol</option>
+          </select>
+          <button id="upgradeButton" class="btn btn-secondary" type="button">Upgrade Pro</button>
+        </div>
       </header>
 
       <section class="metrics" aria-label="Resumo da conta">
@@ -725,10 +771,296 @@
   <script>
     const API_BASE = window.location.port === "4173" ? "http://localhost:3001" : "";
     const TOKEN_KEY = "vendibot_token";
+    const UI_LANGUAGE_KEY = "vendibot_ui_language";
+    const SUPPORTED_LANGUAGES = ["pt", "en", "nl", "es"];
+
+    const translations = {
+      pt: {
+        pageTitle: "Vendibot - Gerador de Anuncios",
+        authBrandSubtitle: "Marketplace listing studio",
+        heroTitle: "Anuncios melhores em poucos segundos.",
+        heroSubtitle: "Organize fotos, gere textos de venda e acompanhe o uso mensal com uma conta propria para cada vendedor.",
+        heroNote: "Plano gratis com limite mensal. Estrutura pronta para upgrade pago.",
+        loginTitle: "Entrar",
+        loginSubtitle: "Acesse seu painel Vendibot.",
+        registerTitle: "Criar conta",
+        registerSubtitle: "Comece com o plano gratis.",
+        resetTitle: "Trocar senha",
+        resetSubtitle: "Defina uma nova senha usando seu codigo de recuperacao.",
+        name: "Nome",
+        namePlaceholder: "Seu nome",
+        email: "Email",
+        emailPlaceholder: "voce@email.com",
+        password: "Senha",
+        newPassword: "Nova senha",
+        passwordPlaceholder: "Minimo 6 caracteres",
+        newPasswordPlaceholder: "Digite a nova senha",
+        resetCode: "Codigo de recuperacao",
+        resetCodePlaceholder: "Codigo privado",
+        forgotPassword: "Esqueci minha senha",
+        noAccount: "Ainda nao tem conta?",
+        hasAccount: "Ja tem conta?",
+        createAccount: "Criar conta",
+        wait: "Aguarde...",
+        appBrandSubtitle: "Gerador de anuncios",
+        sidebarNote: "Crie textos otimizados para Vinted, OLX, Marktplaats, Facebook Marketplace e lojas locais.",
+        logout: "Sair",
+        topbarTitle: "Painel de criacao",
+        topbarSubtitle: "Faca upload das fotos, descreva o produto e gere um anuncio pronto para publicar.",
+        upgrade: "Upgrade Pro",
+        proActive: "Plano Pro ativo",
+        opening: "Abrindo...",
+        plan: "Plano",
+        free: "Gratis",
+        pro: "Pro",
+        monthlyUsage: "Uso mensal",
+        unlimited: "ilimitado",
+        status: "Status",
+        active: "Ativo",
+        limitReached: "Limite atingido",
+        newAd: "Novo anuncio",
+        newAdHelp: "Use ate 12 imagens por geracao.",
+        productPhotos: "Fotos do produto",
+        selectImages: "Selecionar imagens",
+        imageHelp: "PNG, JPG ou WebP ate 8 MB cada",
+        adLanguage: "Idioma do anuncio",
+        channel: "Canal",
+        productDescription: "Descricao do produto",
+        productPlaceholder: "Ex: Tenis Nike usado, tamanho 42, em bom estado...",
+        generate: "Gerar anuncio",
+        generating: "Gerando...",
+        clear: "Limpar",
+        result: "Resultado",
+        resultHelp: "Texto final para revisar e publicar.",
+        copy: "Copiar",
+        emptyResult: "Seu anuncio aparecera aqui.",
+        analyzing: "Analisando produto e preparando anuncio...",
+        generated: "Anuncio gerado com sucesso.",
+        copied: "Anuncio copiado.",
+        noResult: "Nenhum texto retornado.",
+        checkoutUnavailable: "Checkout indisponivel no momento.",
+        checkoutSuccess: "Pagamento confirmado. Seu plano sera atualizado em instantes.",
+        checkoutCancelled: "Checkout cancelado. Voce pode tentar novamente quando quiser.",
+        channelPrompt: "Canal desejado",
+        previewAlt: "Previa de",
+        genericError: "Nao foi possivel concluir a acao.",
+      },
+      en: {
+        pageTitle: "Vendibot - Listing Generator",
+        authBrandSubtitle: "Marketplace listing studio",
+        heroTitle: "Better listings in seconds.",
+        heroSubtitle: "Upload photos, generate sales copy, and track monthly usage with one account for each seller.",
+        heroNote: "Free plan with a monthly limit. Ready for paid upgrades.",
+        loginTitle: "Sign in",
+        loginSubtitle: "Access your Vendibot dashboard.",
+        registerTitle: "Create account",
+        registerSubtitle: "Start with the free plan.",
+        resetTitle: "Reset password",
+        resetSubtitle: "Set a new password using your recovery code.",
+        name: "Name",
+        namePlaceholder: "Your name",
+        email: "Email",
+        emailPlaceholder: "you@email.com",
+        password: "Password",
+        newPassword: "New password",
+        passwordPlaceholder: "At least 6 characters",
+        newPasswordPlaceholder: "Enter a new password",
+        resetCode: "Recovery code",
+        resetCodePlaceholder: "Private code",
+        forgotPassword: "Forgot password",
+        noAccount: "No account yet?",
+        hasAccount: "Already have an account?",
+        createAccount: "Create account",
+        wait: "Please wait...",
+        appBrandSubtitle: "Listing generator",
+        sidebarNote: "Create optimized copy for Vinted, OLX, Marktplaats, Facebook Marketplace, and local shops.",
+        logout: "Log out",
+        topbarTitle: "Creation dashboard",
+        topbarSubtitle: "Upload photos, describe the product, and generate a ready-to-publish listing.",
+        upgrade: "Upgrade Pro",
+        proActive: "Pro plan active",
+        opening: "Opening...",
+        plan: "Plan",
+        free: "Free",
+        pro: "Pro",
+        monthlyUsage: "Monthly usage",
+        unlimited: "unlimited",
+        status: "Status",
+        active: "Active",
+        limitReached: "Limit reached",
+        newAd: "New listing",
+        newAdHelp: "Use up to 12 images per generation.",
+        productPhotos: "Product photos",
+        selectImages: "Select images",
+        imageHelp: "PNG, JPG, or WebP up to 8 MB each",
+        adLanguage: "Listing language",
+        channel: "Channel",
+        productDescription: "Product description",
+        productPlaceholder: "Example: used Nike sneakers, size 42, in good condition...",
+        generate: "Generate listing",
+        generating: "Generating...",
+        clear: "Clear",
+        result: "Result",
+        resultHelp: "Final copy to review and publish.",
+        copy: "Copy",
+        emptyResult: "Your listing will appear here.",
+        analyzing: "Analyzing product and preparing listing...",
+        generated: "Listing generated successfully.",
+        copied: "Listing copied.",
+        noResult: "No text returned.",
+        checkoutUnavailable: "Checkout is unavailable right now.",
+        checkoutSuccess: "Payment confirmed. Your plan will update shortly.",
+        checkoutCancelled: "Checkout cancelled. You can try again anytime.",
+        channelPrompt: "Requested channel",
+        previewAlt: "Preview of",
+        genericError: "Unable to complete the action.",
+      },
+      nl: {
+        pageTitle: "Vendibot - Advertentiegenerator",
+        authBrandSubtitle: "Marketplace listing studio",
+        heroTitle: "Betere advertenties in seconden.",
+        heroSubtitle: "Upload foto's, genereer verkoopteksten en volg maandelijks gebruik per verkoper.",
+        heroNote: "Gratis abonnement met maandlimiet. Klaar voor betaalde upgrades.",
+        loginTitle: "Inloggen",
+        loginSubtitle: "Open je Vendibot-dashboard.",
+        registerTitle: "Account maken",
+        registerSubtitle: "Start met het gratis plan.",
+        resetTitle: "Wachtwoord wijzigen",
+        resetSubtitle: "Stel een nieuw wachtwoord in met je herstelcode.",
+        name: "Naam",
+        namePlaceholder: "Je naam",
+        email: "Email",
+        emailPlaceholder: "jij@email.com",
+        password: "Wachtwoord",
+        newPassword: "Nieuw wachtwoord",
+        passwordPlaceholder: "Minimaal 6 tekens",
+        newPasswordPlaceholder: "Voer een nieuw wachtwoord in",
+        resetCode: "Herstelcode",
+        resetCodePlaceholder: "Privecode",
+        forgotPassword: "Wachtwoord vergeten",
+        noAccount: "Nog geen account?",
+        hasAccount: "Al een account?",
+        createAccount: "Account maken",
+        wait: "Even geduld...",
+        appBrandSubtitle: "Advertentiegenerator",
+        sidebarNote: "Maak geoptimaliseerde teksten voor Vinted, OLX, Marktplaats, Facebook Marketplace en lokale winkels.",
+        logout: "Uitloggen",
+        topbarTitle: "Creatiedashboard",
+        topbarSubtitle: "Upload foto's, beschrijf het product en genereer een advertentie die klaar is om te publiceren.",
+        upgrade: "Upgrade Pro",
+        proActive: "Pro-plan actief",
+        opening: "Openen...",
+        plan: "Plan",
+        free: "Gratis",
+        pro: "Pro",
+        monthlyUsage: "Maandelijks gebruik",
+        unlimited: "onbeperkt",
+        status: "Status",
+        active: "Actief",
+        limitReached: "Limiet bereikt",
+        newAd: "Nieuwe advertentie",
+        newAdHelp: "Gebruik maximaal 12 afbeeldingen per generatie.",
+        productPhotos: "Productfoto's",
+        selectImages: "Afbeeldingen kiezen",
+        imageHelp: "PNG, JPG of WebP tot 8 MB per bestand",
+        adLanguage: "Taal van advertentie",
+        channel: "Kanaal",
+        productDescription: "Productbeschrijving",
+        productPlaceholder: "Voorbeeld: gebruikte Nike-sneakers, maat 42, in goede staat...",
+        generate: "Advertentie genereren",
+        generating: "Genereren...",
+        clear: "Wissen",
+        result: "Resultaat",
+        resultHelp: "Definitieve tekst om te controleren en te publiceren.",
+        copy: "Kopieren",
+        emptyResult: "Je advertentie verschijnt hier.",
+        analyzing: "Product analyseren en advertentie voorbereiden...",
+        generated: "Advertentie succesvol gegenereerd.",
+        copied: "Advertentie gekopieerd.",
+        noResult: "Geen tekst ontvangen.",
+        checkoutUnavailable: "Checkout is nu niet beschikbaar.",
+        checkoutSuccess: "Betaling bevestigd. Je plan wordt zo bijgewerkt.",
+        checkoutCancelled: "Checkout geannuleerd. Je kunt het later opnieuw proberen.",
+        channelPrompt: "Gewenst kanaal",
+        previewAlt: "Voorbeeld van",
+        genericError: "De actie kon niet worden voltooid.",
+      },
+      es: {
+        pageTitle: "Vendibot - Generador de anuncios",
+        authBrandSubtitle: "Marketplace listing studio",
+        heroTitle: "Mejores anuncios en segundos.",
+        heroSubtitle: "Sube fotos, genera textos de venta y controla el uso mensual con una cuenta para cada vendedor.",
+        heroNote: "Plan gratis con limite mensual. Listo para upgrades pagos.",
+        loginTitle: "Entrar",
+        loginSubtitle: "Accede a tu panel Vendibot.",
+        registerTitle: "Crear cuenta",
+        registerSubtitle: "Empieza con el plan gratis.",
+        resetTitle: "Cambiar contrasena",
+        resetSubtitle: "Define una nueva contrasena usando tu codigo de recuperacion.",
+        name: "Nombre",
+        namePlaceholder: "Tu nombre",
+        email: "Email",
+        emailPlaceholder: "tu@email.com",
+        password: "Contrasena",
+        newPassword: "Nueva contrasena",
+        passwordPlaceholder: "Minimo 6 caracteres",
+        newPasswordPlaceholder: "Escribe la nueva contrasena",
+        resetCode: "Codigo de recuperacion",
+        resetCodePlaceholder: "Codigo privado",
+        forgotPassword: "Olvide mi contrasena",
+        noAccount: "Todavia no tienes cuenta?",
+        hasAccount: "Ya tienes cuenta?",
+        createAccount: "Crear cuenta",
+        wait: "Espera...",
+        appBrandSubtitle: "Generador de anuncios",
+        sidebarNote: "Crea textos optimizados para Vinted, OLX, Marktplaats, Facebook Marketplace y tiendas locales.",
+        logout: "Salir",
+        topbarTitle: "Panel de creacion",
+        topbarSubtitle: "Sube fotos, describe el producto y genera un anuncio listo para publicar.",
+        upgrade: "Upgrade Pro",
+        proActive: "Plan Pro activo",
+        opening: "Abriendo...",
+        plan: "Plan",
+        free: "Gratis",
+        pro: "Pro",
+        monthlyUsage: "Uso mensual",
+        unlimited: "ilimitado",
+        status: "Estado",
+        active: "Activo",
+        limitReached: "Limite alcanzado",
+        newAd: "Nuevo anuncio",
+        newAdHelp: "Usa hasta 12 imagenes por generacion.",
+        productPhotos: "Fotos del producto",
+        selectImages: "Seleccionar imagenes",
+        imageHelp: "PNG, JPG o WebP hasta 8 MB cada una",
+        adLanguage: "Idioma del anuncio",
+        channel: "Canal",
+        productDescription: "Descripcion del producto",
+        productPlaceholder: "Ejemplo: tenis Nike usados, talla 42, en buen estado...",
+        generate: "Generar anuncio",
+        generating: "Generando...",
+        clear: "Limpiar",
+        result: "Resultado",
+        resultHelp: "Texto final para revisar y publicar.",
+        copy: "Copiar",
+        emptyResult: "Tu anuncio aparecera aqui.",
+        analyzing: "Analizando producto y preparando anuncio...",
+        generated: "Anuncio generado con exito.",
+        copied: "Anuncio copiado.",
+        noResult: "No se recibio texto.",
+        checkoutUnavailable: "Checkout no disponible en este momento.",
+        checkoutSuccess: "Pago confirmado. Tu plan se actualizara en breve.",
+        checkoutCancelled: "Checkout cancelado. Puedes intentarlo de nuevo cuando quieras.",
+        channelPrompt: "Canal deseado",
+        previewAlt: "Vista previa de",
+        genericError: "No fue posible completar la accion.",
+      },
+    };
 
     const state = {
       mode: "login",
       token: localStorage.getItem(TOKEN_KEY),
+      uiLanguage: getInitialUiLanguage(),
       user: null,
       result: "",
     };
@@ -748,6 +1080,8 @@
     const forgotPassword = document.getElementById("forgotPassword");
     const passwordLabel = document.getElementById("passwordLabel");
     const passwordInput = document.getElementById("password");
+    const authUiLanguage = document.getElementById("authUiLanguage");
+    const appUiLanguage = document.getElementById("appUiLanguage");
     const accountName = document.getElementById("accountName");
     const accountEmail = document.getElementById("accountEmail");
     const planLabel = document.getElementById("planLabel");
@@ -765,8 +1099,98 @@
     const generateButton = document.getElementById("generateButton");
     const clearButton = document.getElementById("clearButton");
     const copyButton = document.getElementById("copyButton");
+    const resultTitle = document.getElementById("resultTitle");
     const resultOutput = document.getElementById("resultOutput");
     const generatorStatus = document.getElementById("generatorStatus");
+
+    function getInitialUiLanguage() {
+      const savedLanguage = localStorage.getItem(UI_LANGUAGE_KEY);
+
+      if (SUPPORTED_LANGUAGES.includes(savedLanguage)) {
+        return savedLanguage;
+      }
+
+      const browserLanguage = (navigator.language || "pt").slice(0, 2);
+      return SUPPORTED_LANGUAGES.includes(browserLanguage) ? browserLanguage : "pt";
+    }
+
+    function t(key) {
+      return translations[state.uiLanguage]?.[key] || translations.pt[key] || key;
+    }
+
+    function setText(target, value) {
+      const element = typeof target === "string" ? document.querySelector(target) : target;
+
+      if (element) {
+        element.textContent = value;
+      }
+    }
+
+    function setPlaceholder(element, value) {
+      if (element) {
+        element.placeholder = value;
+      }
+    }
+
+    function syncUiLanguageSelects() {
+      authUiLanguage.value = state.uiLanguage;
+      appUiLanguage.value = state.uiLanguage;
+    }
+
+    function applyTranslations() {
+      document.documentElement.lang =
+        state.uiLanguage === "pt" ? "pt-BR" : state.uiLanguage;
+      document.title = t("pageTitle");
+      syncUiLanguageSelects();
+
+      setText(".auth-side .brand span", t("authBrandSubtitle"));
+      setText(".auth-side > div:nth-of-type(2) h1", t("heroTitle"));
+      setText(".auth-side > div:nth-of-type(2) p", t("heroSubtitle"));
+      setText(".auth-side > p.side-note", t("heroNote"));
+      setText("label[for='name']", t("name"));
+      setText("label[for='email']", t("email"));
+      setText("label[for='resetCode']", t("resetCode"));
+      setText(forgotPassword, t("forgotPassword"));
+      setPlaceholder(document.getElementById("name"), t("namePlaceholder"));
+      setPlaceholder(document.getElementById("email"), t("emailPlaceholder"));
+      setPlaceholder(document.getElementById("resetCode"), t("resetCodePlaceholder"));
+
+      setText("#appView .brand span", t("appBrandSubtitle"));
+      setText("#appView .side-note", t("sidebarNote"));
+      setText(logoutButton, t("logout"));
+      setText(".topbar h2", t("topbarTitle"));
+      setText(".topbar p", t("topbarSubtitle"));
+      setText(".metric-card:nth-child(1) span", t("plan"));
+      setText(".metric-card:nth-child(2) span", t("monthlyUsage"));
+      setText(".metric-card:nth-child(3) span", t("status"));
+      setText(".tool-card .card-header h3", t("newAd"));
+      setText(".tool-card .card-header p", t("newAdHelp"));
+      setText("label[for='images']", t("productPhotos"));
+      setText(".drop-title", t("selectImages"));
+      setText(imageHelp, t("imageHelp"));
+      setText("label[for='language']", t("adLanguage"));
+      setText("label[for='marketplace']", t("channel"));
+      setText("label[for='description']", t("productDescription"));
+      setPlaceholder(descriptionInput, t("productPlaceholder"));
+      setText(clearButton, t("clear"));
+      setText(resultTitle, t("result"));
+      setText(".result-card .card-header p", t("resultHelp"));
+      setText(copyButton, t("copy"));
+
+      if (!state.result) {
+        resultOutput.textContent = t("emptyResult");
+      }
+
+      updateAuthMode();
+      renderAccount();
+    }
+
+    function setInterfaceLanguage(language) {
+      state.uiLanguage = SUPPORTED_LANGUAGES.includes(language) ? language : "pt";
+      localStorage.setItem(UI_LANGUAGE_KEY, state.uiLanguage);
+      languageSelect.value = state.uiLanguage;
+      applyTranslations();
+    }
 
     function setStatus(element, message, type = "") {
       element.textContent = message;
@@ -808,23 +1232,49 @@
       const isReset = state.mode === "reset";
 
       authTitle.textContent = isRegister
-        ? "Criar conta"
+        ? t("registerTitle")
         : isReset
-          ? "Trocar senha"
-          : "Entrar";
+          ? t("resetTitle")
+          : t("loginTitle");
+      authSubtitle.textContent = isRegister
+        ? t("registerSubtitle")
+        : isReset
+          ? t("resetSubtitle")
+          : t("loginSubtitle");
+      authSubmit.textContent = isRegister
+        ? t("createAccount")
+        : isReset
+          ? t("resetTitle")
+          : t("loginTitle");
+      authSwitchText.textContent = isRegister ? t("hasAccount") : t("noAccount");
+      toggleAuth.textContent = isRegister || isReset ? t("loginTitle") : t("createAccount");
+      passwordLabel.textContent = isReset ? t("newPassword") : t("password");
+      passwordInput.placeholder = isReset ? t("newPasswordPlaceholder") : t("passwordPlaceholder");
+      nameField.classList.toggle("hidden", !isRegister);
+      resetCodeField.classList.toggle("hidden", !isReset);
+      forgotRow.classList.toggle("hidden", state.mode !== "login");
+      passwordInput.autocomplete = isRegister || isReset ? "new-password" : "current-password";
+      setStatus(authStatus, "");
+      return;
+
+      authTitle.textContent = isRegister
+        ? t("registerTitle")
+        : isReset
+          ? t("resetTitle")
+          : t("loginTitle");
       authSubtitle.textContent = isRegister
         ? "Comece com o plano grátis."
         : isReset
           ? "Defina uma nova senha usando seu código de recuperação."
           : "Acesse seu painel Vendibot.";
       authSubmit.textContent = isRegister
-        ? "Criar conta"
+        ? t("createAccount")
         : isReset
-          ? "Trocar senha"
-          : "Entrar";
+          ? t("resetTitle")
+          : t("loginTitle");
       authSwitchText.textContent = isRegister ? "Já tem conta?" : "Ainda não tem conta?";
-      toggleAuth.textContent = isRegister || isReset ? "Entrar" : "Criar conta";
-      passwordLabel.textContent = isReset ? "Nova senha" : "Senha";
+      toggleAuth.textContent = isRegister || isReset ? t("loginTitle") : t("createAccount");
+      passwordLabel.textContent = isReset ? t("newPassword") : t("password");
       passwordInput.placeholder = isReset ? "Digite a nova senha" : "Mínimo 6 caracteres";
       nameField.classList.toggle("hidden", !isRegister);
       resetCodeField.classList.toggle("hidden", !isReset);
@@ -867,6 +1317,10 @@
       accountStatus.textContent = isPro || generations < limit ? "Ativo" : "Limite atingido";
       upgradeButton.disabled = isPro;
       upgradeButton.textContent = isPro ? "Plano Pro ativo" : "Upgrade Pro";
+      planLabel.textContent = isPro ? t("pro") : t("free");
+      usageLabel.textContent = isPro ? `${generations} / ${t("unlimited")}` : `${generations} / ${limit}`;
+      accountStatus.textContent = isPro || generations < limit ? t("active") : t("limitReached");
+      upgradeButton.textContent = isPro ? t("proActive") : t("upgrade");
     }
 
     async function restoreSession() {
@@ -887,11 +1341,11 @@
       event.preventDefault();
       setStatus(authStatus, "");
       const buttonText = state.mode === "register"
-        ? "Criar conta"
+        ? t("createAccount")
         : state.mode === "reset"
-          ? "Trocar senha"
-          : "Entrar";
-      setLoading(authSubmit, true, buttonText, "Aguarde...");
+          ? t("resetTitle")
+          : t("loginTitle");
+      setLoading(authSubmit, true, buttonText, t("wait"));
 
       const formData = new FormData(authForm);
       const payload = {
@@ -919,7 +1373,7 @@
       } catch (error) {
         setStatus(authStatus, error.message, "error");
       } finally {
-        setLoading(authSubmit, false, buttonText, "Aguarde...");
+        setLoading(authSubmit, false, buttonText, t("wait"));
       }
     });
 
@@ -937,7 +1391,7 @@
 
     upgradeButton.addEventListener("click", async () => {
       setStatus(generatorStatus, "");
-      setLoading(upgradeButton, true, "Upgrade Pro", "Abrindo...");
+      setLoading(upgradeButton, true, t("upgrade"), t("opening"));
 
       try {
         const data = await apiFetch("/billing/create-checkout-session", {
@@ -946,14 +1400,14 @@
         });
 
         if (!data.url) {
-          throw new Error("Checkout indisponivel no momento.");
+          throw new Error(t("checkoutUnavailable"));
         }
 
         window.location.href = data.url;
       } catch (error) {
         setStatus(generatorStatus, error.message, "error");
       } finally {
-        setLoading(upgradeButton, false, "Upgrade Pro", "Abrindo...");
+        setLoading(upgradeButton, false, t("upgrade"), t("opening"));
         renderAccount();
       }
     });
@@ -973,13 +1427,13 @@
     generatorForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       setStatus(generatorStatus, "");
-      resultOutput.textContent = "Analisando produto e preparando anúncio...";
+      resultOutput.textContent = t("analyzing");
       copyButton.disabled = true;
       state.result = "";
-      setLoading(generateButton, true, "Gerar anúncio", "Gerando...");
+      setLoading(generateButton, true, t("generate"), t("generating"));
 
       const formData = new FormData();
-      const description = `${descriptionInput.value.trim()}\nCanal desejado: ${marketplaceSelect.value}`;
+      const description = `${descriptionInput.value.trim()}\n${t("channelPrompt")}: ${marketplaceSelect.value}`;
 
       Array.from(imagesInput.files).slice(0, 12).forEach((file) => {
         formData.append("images", file);
@@ -995,7 +1449,7 @@
         });
 
         state.result = data.result || "";
-        resultOutput.textContent = state.result || "Nenhum texto retornado.";
+        resultOutput.textContent = state.result || t("noResult");
         copyButton.disabled = !state.result;
 
         if (data.user) {
@@ -1003,12 +1457,12 @@
           renderAccount();
         }
 
-        setStatus(generatorStatus, "Anúncio gerado com sucesso.", "success");
+        setStatus(generatorStatus, t("generated"), "success");
       } catch (error) {
-        resultOutput.textContent = "Seu anúncio aparecerá aqui.";
+        resultOutput.textContent = t("emptyResult");
         setStatus(generatorStatus, error.message, "error");
       } finally {
-        setLoading(generateButton, false, "Gerar anúncio", "Gerando...");
+        setLoading(generateButton, false, t("generate"), t("generating"));
       }
     });
 
@@ -1016,7 +1470,7 @@
       generatorForm.reset();
       previewGrid.innerHTML = "";
       state.result = "";
-      resultOutput.textContent = "Seu anúncio aparecerá aqui.";
+      resultOutput.textContent = t("emptyResult");
       copyButton.disabled = true;
       setStatus(generatorStatus, "");
     });
@@ -1027,22 +1481,30 @@
       }
 
       await navigator.clipboard.writeText(state.result);
-      setStatus(generatorStatus, "Anúncio copiado.", "success");
+      setStatus(generatorStatus, t("copied"), "success");
     });
 
     const checkoutStatus = new URLSearchParams(window.location.search).get("checkout");
 
     if (checkoutStatus === "success") {
-      setStatus(generatorStatus, "Pagamento confirmado. Seu plano sera atualizado em instantes.", "success");
+      setStatus(generatorStatus, t("checkoutSuccess"), "success");
       window.history.replaceState({}, "", window.location.pathname);
     }
 
     if (checkoutStatus === "cancelled") {
-      setStatus(generatorStatus, "Checkout cancelado. Voce pode tentar novamente quando quiser.", "error");
+      setStatus(generatorStatus, t("checkoutCancelled"), "error");
       window.history.replaceState({}, "", window.location.pathname);
     }
 
-    updateAuthMode();
+    authUiLanguage.addEventListener("change", () => {
+      setInterfaceLanguage(authUiLanguage.value);
+    });
+
+    appUiLanguage.addEventListener("change", () => {
+      setInterfaceLanguage(appUiLanguage.value);
+    });
+
+    applyTranslations();
     restoreSession();
   </script>
 </body>

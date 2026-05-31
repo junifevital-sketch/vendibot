@@ -272,6 +272,8 @@ async function initDataStore() {
   }
 
   await pool.query(`
+    CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
     CREATE TABLE IF NOT EXISTS users (
       id uuid PRIMARY KEY,
       name text NOT NULL,
@@ -290,6 +292,27 @@ async function initDataStore() {
 
     CREATE INDEX IF NOT EXISTS users_stripe_customer_id_idx
       ON users (stripe_customer_id);
+
+    CREATE TABLE IF NOT EXISTS anuncios (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+      title text,
+      suggested_price text,
+      description text,
+      highlights jsonb NOT NULL DEFAULT '[]'::jsonb,
+      hashtags text[] NOT NULL DEFAULT ARRAY[]::text[],
+      marketplace text,
+      language text,
+      source_description text,
+      result text NOT NULL,
+      image_count integer NOT NULL DEFAULT 0,
+      model text,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    );
+
+    CREATE INDEX IF NOT EXISTS anuncios_user_id_created_at_idx
+      ON anuncios (user_id, created_at DESC);
   `);
 
   if (process.env.MIGRATE_JSON_USERS === "true") {
