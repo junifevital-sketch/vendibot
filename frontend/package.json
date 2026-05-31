@@ -1,0 +1,13 @@
+{
+  "name": "vendibot-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Frontend estático para o gerador de anúncios Vendibot",
+  "scripts": {
+    "start": "live-server --open=./index.html --port=4173",
+    "build": "echo \"No build step configured.\""
+  },
+  "devDependencies": {
+    "live-server": "^1.2.2"
+  }
+}

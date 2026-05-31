@@ -1,0 +1,9 @@
+node_modules/
+.env
+.env.*
+!.env.example
+backend/data/users.json
+backend/uploads/
+frontend/npm-debug.log*
+backend/npm-debug.log*
+desktop.ini
