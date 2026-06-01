@@ -62,7 +62,8 @@ const app = express();
 const PORT = Number(process.env.PORT || 3001);
 const NODE_ENV = process.env.NODE_ENV || "development";
 const IS_PRODUCTION = NODE_ENV === "production";
-const FREE_MONTHLY_LIMIT = Number(process.env.FREE_MONTHLY_LIMIT || 20);
+const FREE_MONTHLY_LIMIT = Number(process.env.FREE_MONTHLY_LIMIT || 5);
+const PRO_MONTHLY_LIMIT = Number(process.env.PRO_MONTHLY_LIMIT || 60);
 const SESSION_SECRET =
   process.env.SESSION_SECRET || "vendibot-se-quiser-aprender-aja";
 const PASSWORD_RESET_CODE = process.env.PASSWORD_RESET_CODE || "";
@@ -481,6 +482,127 @@ async function updateUser(user) {
   return user;
 }
 
+function parseListingField(result, labels) {
+  const lines = String(result || "").split(/\r?\n/);
+
+  for (const line of lines) {
+    for (const label of labels) {
+      const prefix = `${label}:`;
+
+      if (line.toLowerCase().startsWith(prefix.toLowerCase())) {
+        return line.slice(prefix.length).trim();
+      }
+    }
+  }
+
+  return "";
+}
+
+function safeListing(listing) {
+  return {
+    id: listing.id,
+    title: listing.title || "Listing",
+    suggestedPrice: listing.suggestedPrice || "",
+    marketplace: listing.marketplace || "",
+    language: listing.language || "",
+    result: listing.result || "",
+    createdAt: listing.createdAt,
+  };
+}
+
+async function createListingRecord(user, listing) {
+  const record = {
+    id: crypto.randomUUID(),
+    userId: user.id,
+    title:
+      listing.title ||
+      parseListingField(listing.result, [
+        "Title",
+        "Titulo",
+        "Titel",
+        "Titulo",
+      ]),
+    suggestedPrice:
+      listing.suggestedPrice ||
+      parseListingField(listing.result, [
+        "Suggested price",
+        "Preco sugerido",
+        "Adviesprijs",
+        "Precio sugerido",
+      ]),
+    description: listing.description || "",
+    highlights: listing.highlights || [],
+    hashtags: listing.hashtags || [],
+    marketplace: listing.marketplace || "",
+    language: listing.language || "",
+    sourceDescription: listing.sourceDescription || "",
+    result: listing.result || "",
+    imageCount: Number(listing.imageCount || 0),
+    model: listing.model || OPENAI_MODEL,
+    createdAt: new Date().toISOString(),
+  };
+
+  if (!pool) {
+    user.listings = [record, ...(user.listings || [])].slice(0, 50);
+    await updateUser(user);
+    return record;
+  }
+
+  await pool.query(
+    `INSERT INTO anuncios (
+      id, user_id, title, suggested_price, description, highlights, hashtags,
+      marketplace, language, source_description, result, image_count, model,
+      created_at
+    ) VALUES (
+      $1, $2, $3, $4, $5, $6::jsonb, $7::text[], $8, $9, $10, $11, $12, $13, $14
+    )`,
+    [
+      record.id,
+      record.userId,
+      record.title,
+      record.suggestedPrice,
+      record.description,
+      JSON.stringify(record.highlights),
+      record.hashtags,
+      record.marketplace,
+      record.language,
+      record.sourceDescription,
+      record.result,
+      record.imageCount,
+      record.model,
+      record.createdAt,
+    ],
+  );
+
+  return record;
+}
+
+async function listUserListings(user, limit = 10) {
+  const safeLimit = Math.max(1, Math.min(50, Number(limit || 10)));
+
+  if (!pool) {
+    return (user.listings || []).slice(0, safeLimit).map(safeListing);
+  }
+
+  const result = await pool.query(
+    `SELECT
+      id,
+      title,
+      suggested_price AS "suggestedPrice",
+      marketplace,
+      language,
+      result,
+      created_at AS "createdAt"
+    FROM anuncios
+    WHERE user_id = $1
+    ORDER BY created_at DESC
+    LIMIT $2`,
+    [user.id, safeLimit],
+  );
+
+  return result.rows.map(safeListing);
+}
+
 function hashPassword(password, salt = crypto.randomBytes(16).toString("hex")) {
   const hash = crypto
     .pbkdf2Sync(password, salt, 120000, 32, "sha256")
@@ -555,13 +677,15 @@ function getBearerToken(req) {
 }
 
 function safeUser(user) {
+  const limit = user.plan === "pro" ? PRO_MONTHLY_LIMIT : FREE_MONTHLY_LIMIT;
+
   return {
     id: user.id,
     name: user.name,
     email: user.email,
     plan: user.plan,
     usage: normalizeUsage(user),
-    limit: user.plan === "pro" ? null : FREE_MONTHLY_LIMIT,
+    limit,
   };
 }
 
@@ -787,6 +911,15 @@ app.get("/auth/me", requireAuth, async (req, res, next) => {
   }
 });
 
+app.get("/anuncios", requireAuth, async (req, res, next) => {
+  try {
+    const listings = await listUserListings(req.user, req.query.limit || 10);
+    res.json({ listings });
+  } catch (err) {
+    next(err);
+  }
+});
+
 app.post("/billing/create-checkout-session", requireAuth, async (req, res, next) => {
   try {
     if (!stripe || !STRIPE_PRICE_ID) {
@@ -895,8 +1028,9 @@ app.post(
   upload.array("images", 12),
   async (req, res) => {
     try {
-      const { description, lang } = req.body;
+      const { description, lang, marketplace } = req.body;
       const cleanDescription = String(description || "").trim();
+      const cleanMarketplace = String(marketplace || "").trim().slice(0, 80);
       const languageSettings = getListingLanguageSettings(lang);
 
       if (!cleanDescription && (!req.files || req.files.length === 0)) {
@@ -913,10 +1047,13 @@ app.post(
 
       const usage = normalizeUsage(req.user);
 
-      if (req.user.plan !== "pro" && usage.generations >= FREE_MONTHLY_LIMIT) {
+      const monthlyLimit =
+        req.user.plan === "pro" ? PRO_MONTHLY_LIMIT : FREE_MONTHLY_LIMIT;
+
+      if (usage.generations >= monthlyLimit) {
         res.status(402).json({
           error:
-            "Limite mensal do plano gratis atingido. Faca upgrade para continuar.",
+            "Limite mensal atingido. Faca upgrade ou compre creditos para continuar.",
         });
         return;
       }
@@ -927,6 +1064,13 @@ app.post(
         content.push({
           type: "input_text",
           text: `Seller description: ${cleanDescription}`,
+        });
+      }
+
+      if (cleanMarketplace) {
+        content.push({
+          type: "input_text",
+          text: `Requested marketplace/channel: ${cleanMarketplace}`,
         });
       }
 
@@ -975,9 +1119,18 @@ ${languageSettings.format}
 
       usage.generations += 1;
       await updateUser(req.user);
+      const listing = await createListingRecord(req.user, {
+        result: response.output_text,
+        marketplace: cleanMarketplace,
+        language: String(lang || "pt").slice(0, 8),
+        sourceDescription: cleanDescription,
+        imageCount: (req.files || []).length,
+        model: OPENAI_MODEL,
+      });
 
       res.json({
         result: response.output_text,
+        listing: safeListing(listing),
         user: safeUser(req.user),
       });
     } catch (err) {

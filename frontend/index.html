@@ -415,6 +415,104 @@
       color: var(--success);
     }
 
+    .history-section {
+      margin-top: 18px;
+    }
+
+    .history-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .history-item {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      padding: 14px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .history-item button {
+      justify-self: start;
+    }
+
+    .history-meta {
+      color: var(--muted);
+      font-size: 0.86rem;
+      font-weight: 700;
+    }
+
+    .plans-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: grid;
+      place-items: center;
+      background: rgba(18, 24, 32, 0.72);
+      padding: 20px;
+    }
+
+    .plans-panel {
+      width: min(100%, 880px);
+      max-height: min(88vh, 820px);
+      overflow: auto;
+      background: var(--surface);
+      color: var(--ink);
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      padding: 22px;
+    }
+
+    .plans-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .plans-header h3 {
+      margin: 0 0 6px;
+      font-size: 1.25rem;
+    }
+
+    .plans-header p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .plans-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .plan-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px;
+      display: grid;
+      gap: 10px;
+      background: var(--surface-soft);
+    }
+
+    .plan-card strong {
+      font-size: 1.1rem;
+    }
+
+    .plan-price {
+      font-size: 1.4rem;
+      font-weight: 900;
+    }
+
+    .plan-note {
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.35;
+    }
+
     .auth-view {
       min-height: 100vh;
       display: grid;
@@ -563,7 +661,8 @@
       }
 
       .grid-two,
-      .metrics {
+      .metrics,
+      .plans-grid {
         grid-template-columns: 1fr;
       }
 
@@ -686,7 +785,7 @@
         </div>
         <div class="metric-card">
           <span>Uso mensal</span>
-          <strong id="usageLabel">0 / 20</strong>
+          <strong id="usageLabel">0 / 5</strong>
           <div class="meter" aria-hidden="true">
             <div id="usageBar" class="meter-bar"></div>
           </div>
@@ -765,7 +864,55 @@
           <pre id="resultOutput" class="result-output">Seu anúncio aparecerá aqui.</pre>
         </section>
       </section>
+
+      <section class="history-section result-card" aria-labelledby="historyTitle">
+        <div class="card-header">
+          <div>
+            <h3 id="historyTitle">Historico</h3>
+            <p id="historySubtitle">Seus ultimos anuncios gerados.</p>
+          </div>
+          <button id="refreshHistoryButton" class="btn btn-secondary" type="button">Atualizar</button>
+        </div>
+        <div id="historyList" class="history-list"></div>
+        <div id="historyStatus" class="status" role="status" aria-live="polite"></div>
+      </section>
     </main>
+  </div>
+
+  <div id="plansModal" class="plans-modal hidden" role="dialog" aria-modal="true" aria-labelledby="plansTitle">
+    <section class="plans-panel">
+      <div class="plans-header">
+        <div>
+          <h3 id="plansTitle">Planos Vendibot</h3>
+          <p id="plansSubtitle">Escolha creditos avulsos ou um plano mensal quando vender com frequencia.</p>
+        </div>
+        <button id="closePlansButton" class="btn btn-secondary" type="button">Fechar</button>
+      </div>
+      <div class="plans-grid">
+        <article class="plan-card">
+          <strong id="freePlanTitle">Gratis</strong>
+          <div id="freePlanPrice" class="plan-price">€0</div>
+          <p id="freePlanNote" class="plan-note">5 anuncios para testar.</p>
+        </article>
+        <article class="plan-card">
+          <strong id="starterPlanTitle">Starter</strong>
+          <div id="starterPlanPrice" class="plan-price">€3</div>
+          <p id="starterPlanNote" class="plan-note">10 creditos para quem anuncia de vez em quando.</p>
+        </article>
+        <article class="plan-card">
+          <strong id="regularPlanTitle">Regular</strong>
+          <div id="regularPlanPrice" class="plan-price">€7</div>
+          <p id="regularPlanNote" class="plan-note">30 creditos para vendedores recorrentes.</p>
+        </article>
+        <article class="plan-card">
+          <strong id="proPlanTitle">Pro mensal</strong>
+          <div id="proPlanPrice" class="plan-price">€9/mes</div>
+          <p id="proPlanNote" class="plan-note">60 anuncios por mes, melhor para uso constante.</p>
+          <button id="startProCheckoutButton" class="btn btn-primary" type="button">Assinar Pro</button>
+        </article>
+      </div>
+      <p id="plansFootnote" class="plan-note">Pacotes de creditos entram na proxima etapa do Stripe. O Pro mensal ja usa o checkout conectado.</p>
+    </section>
   </div>
 
   <script>
@@ -844,6 +991,22 @@
         channelPrompt: "Canal desejado",
         previewAlt: "Previa de",
         genericError: "Nao foi possivel concluir a acao.",
+        plansTitle: "Planos Vendibot",
+        plansSubtitle: "Escolha creditos avulsos ou um plano mensal quando vender com frequencia.",
+        close: "Fechar",
+        freePlanNote: "5 anuncios para testar.",
+        starterPlanNote: "10 creditos para quem anuncia de vez em quando.",
+        regularPlanNote: "30 creditos para vendedores recorrentes.",
+        proPlanTitle: "Pro mensal",
+        proPlanNote: "60 anuncios por mes, melhor para uso constante.",
+        startPro: "Assinar Pro",
+        plansFootnote: "Pacotes de creditos entram na proxima etapa do Stripe. O Pro mensal ja usa o checkout conectado.",
+        historyTitle: "Historico",
+        historySubtitle: "Seus ultimos anuncios gerados.",
+        refresh: "Atualizar",
+        noHistory: "Seus anuncios salvos aparecem aqui depois da primeira geracao.",
+        openHistory: "Abrir",
+        historyLoaded: "Historico atualizado.",
       },
       en: {
         pageTitle: "Vendibot - Listing Generator",
@@ -914,6 +1077,22 @@
         channelPrompt: "Requested channel",
         previewAlt: "Preview of",
         genericError: "Unable to complete the action.",
+        plansTitle: "Vendibot plans",
+        plansSubtitle: "Choose credit packs for occasional use or a monthly plan for frequent selling.",
+        close: "Close",
+        freePlanNote: "5 listings to try the product.",
+        starterPlanNote: "10 credits for occasional sellers.",
+        regularPlanNote: "30 credits for recurring sellers.",
+        proPlanTitle: "Monthly Pro",
+        proPlanNote: "60 listings per month, best for steady use.",
+        startPro: "Subscribe to Pro",
+        plansFootnote: "Credit packs are the next Stripe step. Monthly Pro already uses the connected checkout.",
+        historyTitle: "History",
+        historySubtitle: "Your latest generated listings.",
+        refresh: "Refresh",
+        noHistory: "Your saved listings will appear here after the first generation.",
+        openHistory: "Open",
+        historyLoaded: "History updated.",
       },
       nl: {
         pageTitle: "Vendibot - Advertentiegenerator",
@@ -984,6 +1163,22 @@
         channelPrompt: "Gewenst kanaal",
         previewAlt: "Voorbeeld van",
         genericError: "De actie kon niet worden voltooid.",
+        plansTitle: "Vendibot-plannen",
+        plansSubtitle: "Kies losse credits of een maandplan als je vaak verkoopt.",
+        close: "Sluiten",
+        freePlanNote: "5 advertenties om te testen.",
+        starterPlanNote: "10 credits voor wie af en toe adverteert.",
+        regularPlanNote: "30 credits voor terugkerende verkopers.",
+        proPlanTitle: "Pro per maand",
+        proPlanNote: "60 advertenties per maand, ideaal voor vast gebruik.",
+        startPro: "Pro nemen",
+        plansFootnote: "Creditpakketten zijn de volgende Stripe-stap. Pro per maand gebruikt al de verbonden checkout.",
+        historyTitle: "Geschiedenis",
+        historySubtitle: "Je laatst gegenereerde advertenties.",
+        refresh: "Vernieuwen",
+        noHistory: "Je opgeslagen advertenties verschijnen hier na de eerste generatie.",
+        openHistory: "Openen",
+        historyLoaded: "Geschiedenis bijgewerkt.",
       },
       es: {
         pageTitle: "Vendibot - Generador de anuncios",
@@ -1054,6 +1249,22 @@
         channelPrompt: "Canal deseado",
         previewAlt: "Vista previa de",
         genericError: "No fue posible completar la accion.",
+        plansTitle: "Planes Vendibot",
+        plansSubtitle: "Elige creditos sueltos o un plan mensual si vendes con frecuencia.",
+        close: "Cerrar",
+        freePlanNote: "5 anuncios para probar.",
+        starterPlanNote: "10 creditos para vendedores ocasionales.",
+        regularPlanNote: "30 creditos para vendedores recurrentes.",
+        proPlanTitle: "Pro mensual",
+        proPlanNote: "60 anuncios al mes, mejor para uso constante.",
+        startPro: "Suscribirse a Pro",
+        plansFootnote: "Los paquetes de creditos son el siguiente paso de Stripe. Pro mensual ya usa el checkout conectado.",
+        historyTitle: "Historial",
+        historySubtitle: "Tus ultimos anuncios generados.",
+        refresh: "Actualizar",
+        noHistory: "Tus anuncios guardados apareceran aqui despues de la primera generacion.",
+        openHistory: "Abrir",
+        historyLoaded: "Historial actualizado.",
       },
     };
 
@@ -1063,6 +1274,7 @@
       uiLanguage: getInitialUiLanguage(),
       user: null,
       result: "",
+      listings: [],
     };
 
     const authView = document.getElementById("authView");
@@ -1102,6 +1314,22 @@
     const resultTitle = document.getElementById("resultTitle");
     const resultOutput = document.getElementById("resultOutput");
     const generatorStatus = document.getElementById("generatorStatus");
+    const historyTitle = document.getElementById("historyTitle");
+    const historySubtitle = document.getElementById("historySubtitle");
+    const historyList = document.getElementById("historyList");
+    const historyStatus = document.getElementById("historyStatus");
+    const refreshHistoryButton = document.getElementById("refreshHistoryButton");
+    const plansModal = document.getElementById("plansModal");
+    const plansTitle = document.getElementById("plansTitle");
+    const plansSubtitle = document.getElementById("plansSubtitle");
+    const closePlansButton = document.getElementById("closePlansButton");
+    const freePlanNote = document.getElementById("freePlanNote");
+    const starterPlanNote = document.getElementById("starterPlanNote");
+    const regularPlanNote = document.getElementById("regularPlanNote");
+    const proPlanTitle = document.getElementById("proPlanTitle");
+    const proPlanNote = document.getElementById("proPlanNote");
+    const startProCheckoutButton = document.getElementById("startProCheckoutButton");
+    const plansFootnote = document.getElementById("plansFootnote");
 
     function getInitialUiLanguage() {
       const savedLanguage = localStorage.getItem(UI_LANGUAGE_KEY);
@@ -1176,6 +1404,19 @@
       setText(resultTitle, t("result"));
       setText(".result-card .card-header p", t("resultHelp"));
       setText(copyButton, t("copy"));
+      setText(historyTitle, t("historyTitle"));
+      setText(historySubtitle, t("historySubtitle"));
+      setText(refreshHistoryButton, t("refresh"));
+      setText(plansTitle, t("plansTitle"));
+      setText(plansSubtitle, t("plansSubtitle"));
+      setText(closePlansButton, t("close"));
+      setText(freePlanNote, t("freePlanNote"));
+      setText(starterPlanNote, t("starterPlanNote"));
+      setText(regularPlanNote, t("regularPlanNote"));
+      setText(proPlanTitle, t("proPlanTitle"));
+      setText(proPlanNote, t("proPlanNote"));
+      setText(startProCheckoutButton, t("startPro"));
+      setText(plansFootnote, t("plansFootnote"));
 
       if (!state.result) {
         resultOutput.textContent = t("emptyResult");
@@ -1183,6 +1424,7 @@
 
       updateAuthMode();
       renderAccount();
+      renderHistory();
     }
 
     function setInterfaceLanguage(language) {
@@ -1293,9 +1535,12 @@
     function showAuth() {
       state.user = null;
       state.token = null;
+      state.listings = [];
       localStorage.removeItem(TOKEN_KEY);
       authView.classList.remove("hidden");
       appView.classList.add("hidden");
+      closePlans();
+      renderHistory();
     }
 
     function renderAccount() {
@@ -1307,20 +1552,112 @@
       const limit = state.user.limit;
       const isPro = state.user.plan === "pro";
       const generations = usage.generations || 0;
-      const percent = isPro || !limit ? 100 : Math.min(100, Math.round((generations / limit) * 100));
+      const percent = !limit ? 100 : Math.min(100, Math.round((generations / limit) * 100));
 
       accountName.textContent = state.user.name || "Vendedor";
       accountEmail.textContent = state.user.email;
       planLabel.textContent = isPro ? "Pro" : "Grátis";
-      usageLabel.textContent = isPro ? `${generations} / ilimitado` : `${generations} / ${limit}`;
+      usageLabel.textContent = limit ? `${generations} / ${limit}` : `${generations} / ilimitado`;
       usageBar.style.width = `${percent}%`;
-      accountStatus.textContent = isPro || generations < limit ? "Ativo" : "Limite atingido";
+      accountStatus.textContent = !limit || generations < limit ? "Ativo" : "Limite atingido";
       upgradeButton.disabled = isPro;
       upgradeButton.textContent = isPro ? "Plano Pro ativo" : "Upgrade Pro";
       planLabel.textContent = isPro ? t("pro") : t("free");
-      usageLabel.textContent = isPro ? `${generations} / ${t("unlimited")}` : `${generations} / ${limit}`;
-      accountStatus.textContent = isPro || generations < limit ? t("active") : t("limitReached");
+      usageLabel.textContent = limit ? `${generations} / ${limit}` : `${generations} / ${t("unlimited")}`;
+      accountStatus.textContent = !limit || generations < limit ? t("active") : t("limitReached");
       upgradeButton.textContent = isPro ? t("proActive") : t("upgrade");
+    }
+
+    function renderHistory() {
+      historyList.innerHTML = "";
+
+      if (!state.listings.length) {
+        const empty = document.createElement("div");
+        empty.className = "history-item";
+        empty.textContent = t("noHistory");
+        historyList.appendChild(empty);
+        return;
+      }
+
+      state.listings.forEach((listing) => {
+        const item = document.createElement("article");
+        item.className = "history-item";
+
+        const title = document.createElement("strong");
+        title.textContent = listing.title || t("result");
+
+        const meta = document.createElement("div");
+        meta.className = "history-meta";
+        const date = listing.createdAt
+          ? new Date(listing.createdAt).toLocaleDateString()
+          : "";
+        meta.textContent = [date, listing.marketplace, listing.language]
+          .filter(Boolean)
+          .join(" • ");
+
+        const button = document.createElement("button");
+        button.className = "btn btn-secondary";
+        button.type = "button";
+        button.textContent = t("openHistory");
+        button.addEventListener("click", () => {
+          state.result = listing.result || "";
+          resultOutput.textContent = state.result || t("emptyResult");
+          copyButton.disabled = !state.result;
+        });
+
+        item.append(title, meta, button);
+        historyList.appendChild(item);
+      });
+    }
+
+    async function loadHistory(showStatus = false) {
+      if (!state.token) {
+        state.listings = [];
+        renderHistory();
+        return;
+      }
+
+      try {
+        const data = await apiFetch("/anuncios?limit=10");
+        state.listings = data.listings || [];
+        renderHistory();
+
+        if (showStatus) {
+          setStatus(historyStatus, t("historyLoaded"), "success");
+        }
+      } catch (error) {
+        setStatus(historyStatus, error.message, "error");
+      }
+    }
+
+    function openPlans() {
+      plansModal.classList.remove("hidden");
+    }
+
+    function closePlans() {
+      plansModal.classList.add("hidden");
+    }
+
+    async function startProCheckout() {
+      setStatus(generatorStatus, "");
+      setLoading(startProCheckoutButton, true, t("startPro"), t("opening"));
+
+      try {
+        const data = await apiFetch("/billing/create-checkout-session", {
+          method: "POST",
+          body: JSON.stringify({}),
+        });
+
+        if (!data.url) {
+          throw new Error(t("checkoutUnavailable"));
+        }
+
+        window.location.href = data.url;
+      } catch (error) {
+        setStatus(generatorStatus, error.message, "error");
+      } finally {
+        setLoading(startProCheckoutButton, false, t("startPro"), t("opening"));
+      }
     }
 
     async function restoreSession() {
@@ -1332,6 +1669,7 @@
       try {
         const data = await apiFetch("/auth/me");
         showApp(data.user);
+        loadHistory();
       } catch {
         showAuth();
       }
@@ -1370,6 +1708,7 @@
         localStorage.setItem(TOKEN_KEY, data.token);
         authForm.reset();
         showApp(data.user);
+        loadHistory();
       } catch (error) {
         setStatus(authStatus, error.message, "error");
       } finally {
@@ -1389,28 +1728,15 @@
 
     logoutButton.addEventListener("click", showAuth);
 
-    upgradeButton.addEventListener("click", async () => {
-      setStatus(generatorStatus, "");
-      setLoading(upgradeButton, true, t("upgrade"), t("opening"));
-
-      try {
-        const data = await apiFetch("/billing/create-checkout-session", {
-          method: "POST",
-          body: JSON.stringify({}),
-        });
-
-        if (!data.url) {
-          throw new Error(t("checkoutUnavailable"));
-        }
-
-        window.location.href = data.url;
-      } catch (error) {
-        setStatus(generatorStatus, error.message, "error");
-      } finally {
-        setLoading(upgradeButton, false, t("upgrade"), t("opening"));
-        renderAccount();
+    upgradeButton.addEventListener("click", openPlans);
+    closePlansButton.addEventListener("click", closePlans);
+    plansModal.addEventListener("click", (event) => {
+      if (event.target === plansModal) {
+        closePlans();
       }
     });
+    startProCheckoutButton.addEventListener("click", startProCheckout);
+    refreshHistoryButton.addEventListener("click", () => loadHistory(true));
 
     imagesInput.addEventListener("change", () => {
       previewGrid.innerHTML = "";
@@ -1433,7 +1759,7 @@
       setLoading(generateButton, true, t("generate"), t("generating"));
 
       const formData = new FormData();
-      const description = `${descriptionInput.value.trim()}\n${t("channelPrompt")}: ${marketplaceSelect.value}`;
+      const description = descriptionInput.value.trim();
 
       Array.from(imagesInput.files).slice(0, 12).forEach((file) => {
         formData.append("images", file);
@@ -1441,6 +1767,7 @@
 
       formData.append("description", description);
       formData.append("lang", languageSelect.value);
+      formData.append("marketplace", marketplaceSelect.value);
 
       try {
         const data = await apiFetch("/generate", {
@@ -1455,6 +1782,14 @@
         if (data.user) {
           state.user = data.user;
           renderAccount();
+        }
+
+        if (data.listing) {
+          state.listings = [
+            data.listing,
+            ...state.listings.filter((item) => item.id !== data.listing.id),
+          ].slice(0, 10);
+          renderHistory();
         }
 
         setStatus(generatorStatus, t("generated"), "success");
