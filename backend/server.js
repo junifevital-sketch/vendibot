@@ -824,6 +824,70 @@ app.post("/billing/create-checkout-session", requireAuth, async (req, res, next)
   }
 });
 
+const listingLanguageSettings = {
+  pt: {
+    name: "Brazilian Portuguese",
+    currency: "Use EUR for Europe or R$ for Brazil when the context is clear.",
+    format: `Titulo:
+Preco sugerido:
+Descricao:
+Destaques:
+- item
+- item
+- item
+
+Hashtags:
+#tag #tag #tag`,
+  },
+  en: {
+    name: "English",
+    currency: "Use EUR for Europe, USD for the United States, or GBP for the United Kingdom when the context is clear.",
+    format: `Title:
+Suggested price:
+Description:
+Highlights:
+- item
+- item
+- item
+
+Hashtags:
+#tag #tag #tag`,
+  },
+  nl: {
+    name: "Dutch",
+    currency: "Use EUR unless the context clearly indicates another currency.",
+    format: `Titel:
+Adviesprijs:
+Beschrijving:
+Highlights:
+- item
+- item
+- item
+
+Hashtags:
+#tag #tag #tag`,
+  },
+  es: {
+    name: "Spanish",
+    currency: "Use EUR or a local currency when the context is clear.",
+    format: `Titulo:
+Precio sugerido:
+Descripcion:
+Destacados:
+- item
+- item
+- item
+
+Hashtags:
+#tag #tag #tag`,
+  },
+};
+
+function getListingLanguageSettings(language) {
+  const code = String(language || "pt").slice(0, 2).toLowerCase();
+  return listingLanguageSettings[code] || listingLanguageSettings.pt;
+}
+
 app.post(
   "/generate",
   requireAuth,
@@ -833,6 +897,7 @@ app.post(
     try {
       const { description, lang } = req.body;
       const cleanDescription = String(description || "").trim();
+      const languageSettings = getListingLanguageSettings(lang);
 
       if (!cleanDescription && (!req.files || req.files.length === 0)) {
         res.status(400).json({ error: "Envie uma foto ou descreva o produto." });
@@ -861,7 +926,7 @@ app.post(
       if (cleanDescription) {
         content.push({
           type: "input_text",
-          text: `Descricao do vendedor: ${cleanDescription}`,
+          text: `Seller description: ${cleanDescription}`,
         });
       }
 
@@ -877,33 +942,24 @@ app.post(
       content.push({
         type: "input_text",
         text: `
-Voce e especialista em vendas online para Marktplaats, Vinted, Facebook Marketplace, OLX e marketplaces locais.
+You are an expert marketplace listing writer for Marktplaats, Vinted, Facebook Marketplace, OLX, and local marketplaces.
 
-Crie um anuncio humano, natural e persuasivo com base na imagem e na descricao enviada.
+Create a natural, human, persuasive product listing based on the images and seller description.
 
-Regras:
-- Retorne somente o anuncio final.
-- Nao converse com o usuario.
-- Nao diga "claro", "segue", "aqui esta" ou frases de assistente.
-- Nao invente dados que nao estejam visiveis ou informados.
-- Use linguagem natural, moderna e direta.
-- Destaque beneficios reais e estado aparente do produto.
-- Idioma obrigatorio: ${String(lang || "pt").slice(0, 8)}.
-- O idioma final deve acompanhar o idioma da descricao do usuario sempre que possivel.
-- Use moeda adequada ao contexto: EUR para Europa, R$ para Brasil.
+Rules:
+- Return only the final listing.
+- Do not chat with the user.
+- Do not say "sure", "here it is", or any assistant-like intro.
+- Do not invent details that are not visible or provided.
+- Use natural, modern, direct wording.
+- Highlight real benefits and the apparent condition of the product.
+- Mandatory output language: ${languageSettings.name}.
+- Translate every section label and every sentence into ${languageSettings.name}, even if the seller description or marketplace name is in another language.
+- ${languageSettings.currency}
 
-Formato obrigatorio:
+Mandatory format:
 
-Titulo:
-Preco sugerido:
-Descricao:
-Destaques:
-- item
-- item
-- item
-
-Hashtags:
-#tag #tag #tag
+${languageSettings.format}
 `,
       });
 
