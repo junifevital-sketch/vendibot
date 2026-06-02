@@ -1209,7 +1209,7 @@
             <div class="field">
               <label for="marketplace">Canal</label>
               <select id="marketplace" class="input" name="marketplace">
-                <option>Marketplace geral</option>
+                <option id="marketplaceGeneralOption">General marketplace</option>
                 <option>Vinted</option>
                 <option>OLX</option>
                 <option>Facebook Marketplace</option>
@@ -1224,8 +1224,8 @@
           </div>
 
           <div class="actions">
-            <button id="generateButton" class="btn btn-primary" type="submit">Gerar anúncio</button>
-            <button id="clearButton" class="btn btn-secondary" type="button">Limpar</button>
+            <button id="generateButton" class="btn btn-primary" type="submit">Generate listing</button>
+            <button id="clearButton" class="btn btn-secondary" type="button">Clear</button>
           </div>
           <div id="generatorStatus" class="status" role="status" aria-live="polite"></div>
         </form>
@@ -1368,6 +1368,7 @@
         imageHelp: "PNG, JPG ou WebP ate 8 MB cada",
         adLanguage: "Idioma do anuncio",
         channel: "Canal",
+        marketplaceGeneral: "Marketplace geral",
         productDescription: "Descricao do produto",
         productPlaceholder: "Ex: Tenis Nike usado, tamanho 42, em bom estado...",
         generate: "Gerar anuncio",
@@ -1474,6 +1475,7 @@
         imageHelp: "PNG, JPG, or WebP up to 8 MB each",
         adLanguage: "Listing language",
         channel: "Channel",
+        marketplaceGeneral: "General marketplace",
         productDescription: "Product description",
         productPlaceholder: "Example: used Nike sneakers, size 42, in good condition...",
         generate: "Generate listing",
@@ -1580,6 +1582,7 @@
         imageHelp: "PNG, JPG of WebP tot 8 MB per bestand",
         adLanguage: "Taal van advertentie",
         channel: "Kanaal",
+        marketplaceGeneral: "Algemene marketplace",
         productDescription: "Productbeschrijving",
         productPlaceholder: "Voorbeeld: gebruikte Nike-sneakers, maat 42, in goede staat...",
         generate: "Advertentie genereren",
@@ -1686,6 +1689,7 @@
         imageHelp: "PNG, JPG o WebP hasta 8 MB cada una",
         adLanguage: "Idioma del anuncio",
         channel: "Canal",
+        marketplaceGeneral: "Marketplace general",
         productDescription: "Descripcion del producto",
         productPlaceholder: "Ejemplo: tenis Nike usados, talla 42, en buen estado...",
         generate: "Generar anuncio",
@@ -1787,6 +1791,7 @@
     const previewGrid = document.getElementById("previewGrid");
     const languageSelect = document.getElementById("language");
     const marketplaceSelect = document.getElementById("marketplace");
+    const marketplaceGeneralOption = document.getElementById("marketplaceGeneralOption");
     const descriptionInput = document.getElementById("description");
     const generateButton = document.getElementById("generateButton");
     const clearButton = document.getElementById("clearButton");
@@ -1897,8 +1902,10 @@
       setText(imageHelp, t("imageHelp"));
       setText("label[for='language']", t("adLanguage"));
       setText("label[for='marketplace']", t("channel"));
+      setText(marketplaceGeneralOption, t("marketplaceGeneral"));
       setText("label[for='description']", t("productDescription"));
       setPlaceholder(descriptionInput, t("productPlaceholder"));
+      setText(generateButton, t("generate"));
       setText(clearButton, t("clear"));
       setText(resultTitle, t("result"));
       setText(".result-card .card-header p", t("resultHelp"));
