@@ -2340,6 +2340,10 @@
       setInterfaceLanguage(appUiLanguage.value);
     });
 
+    languageSelect.addEventListener("change", () => {
+      setInterfaceLanguage(languageSelect.value);
+    });
+
     demoBeforeButton.addEventListener("click", () => {
       setDemoMode("before");
     });
