@@ -513,6 +513,221 @@
       line-height: 1.35;
     }
 
+    .auth-hero-copy {
+      position: relative;
+      z-index: 2;
+      max-width: 760px;
+    }
+
+    .hero-product-image {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.34;
+      filter: saturate(0.92) contrast(1.05);
+    }
+
+    .hero-showcase {
+      position: relative;
+      z-index: 2;
+      width: min(100%, 760px);
+      min-height: 310px;
+      margin-top: 28px;
+      display: grid;
+      grid-template-columns: minmax(220px, 0.85fr) minmax(280px, 1fr);
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .demo-board,
+    .demo-output {
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(18, 24, 32, 0.72);
+      backdrop-filter: blur(16px);
+      border-radius: var(--radius);
+      box-shadow: 0 22px 70px rgba(0, 0, 0, 0.28);
+      overflow: hidden;
+    }
+
+    .demo-board {
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+      align-content: space-between;
+    }
+
+    .demo-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .demo-tab {
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      border-radius: var(--radius);
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .demo-tab.is-active {
+      background: var(--accent);
+      color: #1e1a10;
+    }
+
+    .demo-product-stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    .demo-product {
+      display: grid;
+      grid-template-columns: 44px 1fr;
+      gap: 10px;
+      align-items: center;
+      padding: 10px;
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.08);
+      color: #f8fafc;
+    }
+
+    .demo-product span:first-child {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border-radius: var(--radius);
+      background: rgba(232, 184, 78, 0.18);
+      color: #f7d889;
+      font-size: 1.45rem;
+    }
+
+    .demo-product strong,
+    .demo-product small {
+      display: block;
+    }
+
+    .demo-product small {
+      color: #c5ccd6;
+      margin-top: 2px;
+      line-height: 1.3;
+    }
+
+    .demo-pipeline {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .demo-step {
+      min-height: 54px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 8px;
+      border-radius: var(--radius);
+      color: #dce3ec;
+      background: rgba(255, 255, 255, 0.07);
+      font-size: 0.76rem;
+      font-weight: 900;
+      animation: stepPulse 3.6s ease-in-out infinite;
+    }
+
+    .demo-step:nth-child(2) {
+      animation-delay: 0.45s;
+    }
+
+    .demo-step:nth-child(3) {
+      animation-delay: 0.9s;
+    }
+
+    .demo-output {
+      position: relative;
+      padding: 18px;
+      color: #fff;
+      display: grid;
+      align-content: center;
+      gap: 14px;
+    }
+
+    .demo-ai-chip {
+      width: max-content;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(18, 108, 99, 0.92);
+      color: #fff;
+      font-size: 0.78rem;
+      font-weight: 900;
+      animation: chipFloat 3s ease-in-out infinite;
+    }
+
+    .demo-card-state {
+      display: none;
+      gap: 12px;
+    }
+
+    .demo-card-state.is-active {
+      display: grid;
+      animation: cardReveal 0.38s ease both;
+    }
+
+    .demo-card-state h2 {
+      margin: 0;
+      font-size: clamp(1.35rem, 2.4vw, 2.2rem);
+      line-height: 1.05;
+    }
+
+    .demo-card-state p {
+      margin: 0;
+      color: #d7dee8;
+      line-height: 1.5;
+    }
+
+    .typing-lines {
+      display: grid;
+      gap: 8px;
+    }
+
+    .typing-lines span {
+      height: 10px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #e8b84e, #ffffff, #77d3c8);
+      background-size: 220% 100%;
+      animation: typingGlow 2.2s linear infinite;
+    }
+
+    .typing-lines span:nth-child(1) {
+      width: 92%;
+    }
+
+    .typing-lines span:nth-child(2) {
+      width: 74%;
+      animation-delay: 0.18s;
+    }
+
+    .typing-lines span:nth-child(3) {
+      width: 84%;
+      animation-delay: 0.36s;
+    }
+
+    .demo-facts {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .demo-facts span {
+      padding: 7px 9px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      color: #eef3f7;
+      font-weight: 800;
+      font-size: 0.78rem;
+    }
+
     .auth-view {
       min-height: 100vh;
       display: grid;
@@ -521,6 +736,8 @@
     }
 
     .auth-side {
+      position: relative;
+      overflow: hidden;
       padding: 44px;
       color: #fff;
       display: flex;
@@ -529,6 +746,26 @@
       background:
         linear-gradient(135deg, rgba(18, 108, 99, 0.42), rgba(232, 184, 78, 0.14)),
         #121820;
+    }
+
+    .auth-side::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      background:
+        linear-gradient(90deg, rgba(18, 24, 32, 0.96) 0%, rgba(18, 24, 32, 0.82) 42%, rgba(18, 24, 32, 0.44) 100%),
+        linear-gradient(180deg, rgba(18, 24, 32, 0.18), rgba(18, 24, 32, 0.88));
+    }
+
+    .auth-side .brand,
+    .auth-side .side-note {
+      position: relative;
+      z-index: 2;
+    }
+
+    .auth-side > div:not(.brand):not(.auth-hero-copy) {
+      display: none;
     }
 
     .auth-side h1 {
@@ -543,6 +780,52 @@
       color: #c5ccd6;
       font-size: 1.04rem;
       line-height: 1.55;
+    }
+
+    @keyframes stepPulse {
+      0%,
+      100% {
+        transform: translateY(0);
+        background: rgba(255, 255, 255, 0.07);
+      }
+
+      45% {
+        transform: translateY(-3px);
+        background: rgba(18, 108, 99, 0.38);
+      }
+    }
+
+    @keyframes chipFloat {
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-4px);
+      }
+    }
+
+    @keyframes cardReveal {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes typingGlow {
+      from {
+        background-position: 0% 0;
+      }
+
+      to {
+        background-position: 220% 0;
+      }
     }
 
     .auth-panel {
@@ -633,7 +916,12 @@
       }
 
       .auth-side {
-        min-height: 360px;
+        min-height: 680px;
+      }
+
+      .hero-showcase {
+        grid-template-columns: 1fr;
+        max-width: 620px;
       }
     }
 
@@ -673,6 +961,29 @@
       .result-output {
         min-height: 280px;
       }
+
+      .auth-side {
+        min-height: auto;
+      }
+
+      .auth-side h1 {
+        font-size: 2.25rem;
+        margin-top: 28px;
+      }
+
+      .hero-showcase {
+        min-height: 0;
+        margin-top: 20px;
+      }
+
+      .demo-board,
+      .demo-output {
+        padding: 14px;
+      }
+
+      .demo-pipeline {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
@@ -684,6 +995,72 @@
         <div>
           <h1>Vendibot</h1>
           <span>Marketplace listing studio</span>
+        </div>
+      </div>
+      <img class="hero-product-image" src="assets/vendibot-ai-products.png" alt="" aria-hidden="true">
+      <div class="auth-hero-copy">
+        <h1 id="heroTitle">Anuncios melhores em poucos segundos.</h1>
+        <p id="heroSubtitle">Veja o Vendibot transformar uma foto simples de produto em um anuncio pronto para vender.</p>
+
+        <div class="hero-showcase" aria-label="Demonstracao antes e depois">
+          <div class="demo-board">
+            <div class="demo-tabs" role="group" aria-label="Antes e depois">
+              <button id="demoBeforeButton" class="demo-tab" type="button">Antes</button>
+              <button id="demoAfterButton" class="demo-tab is-active" type="button">Depois</button>
+            </div>
+
+            <div class="demo-product-stack">
+              <div class="demo-product">
+                <span aria-hidden="true">T</span>
+                <div>
+                  <strong>Camiseta usada</strong>
+                  <small>Foto + tamanho + estado</small>
+                </div>
+              </div>
+              <div class="demo-product">
+                <span aria-hidden="true">PC</span>
+                <div>
+                  <strong>Laptop usado</strong>
+                  <small>Marca, memoria e condicao</small>
+                </div>
+              </div>
+              <div class="demo-product">
+                <span aria-hidden="true">M</span>
+                <div>
+                  <strong>Caneca decorativa</strong>
+                  <small>Detalhes visuais do produto</small>
+                </div>
+              </div>
+            </div>
+
+            <div class="demo-pipeline" aria-hidden="true">
+              <span id="demoStepUpload" class="demo-step">Upload</span>
+              <span id="demoStepAnalyze" class="demo-step">IA analisa</span>
+              <span id="demoStepWrite" class="demo-step">Texto pronto</span>
+            </div>
+          </div>
+
+          <div id="demoOutput" class="demo-output" data-mode="after">
+            <span id="demoSignal" class="demo-ai-chip">IA gerando anuncio</span>
+            <div id="demoBeforeState" class="demo-card-state">
+              <h2 id="demoBeforeTitle">Antes</h2>
+              <p id="demoBeforeText">Foto solta, descricao curta e nenhuma ideia clara de preco ou destaque.</p>
+              <div class="demo-facts">
+                <span>foto</span>
+                <span>produto</span>
+                <span>rascunho</span>
+              </div>
+            </div>
+            <div id="demoAfterState" class="demo-card-state is-active">
+              <h2 id="demoAfterTitle">Depois</h2>
+              <p id="demoAfterText">Titulo, descricao, beneficios e hashtags em um texto pronto para publicar.</p>
+              <div class="typing-lines" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       <div>
@@ -926,8 +1303,18 @@
         pageTitle: "Vendibot - Gerador de Anuncios",
         authBrandSubtitle: "Marketplace listing studio",
         heroTitle: "Anuncios melhores em poucos segundos.",
-        heroSubtitle: "Organize fotos, gere textos de venda e acompanhe o uso mensal com uma conta propria para cada vendedor.",
-        heroNote: "Plano gratis com limite mensal. Estrutura pronta para upgrade pago.",
+        heroSubtitle: "Veja o Vendibot transformar uma foto simples de produto em um anuncio pronto para vender.",
+        heroNote: "Teste gratis com 5 anuncios. Pagamento manual enquanto o Stripe fica pronto.",
+        demoBefore: "Antes",
+        demoAfter: "Depois",
+        demoSignal: "IA gerando anuncio",
+        demoBeforeTitle: "Antes",
+        demoBeforeText: "Foto solta, descricao curta e nenhuma ideia clara de preco ou destaque.",
+        demoAfterTitle: "Depois",
+        demoAfterText: "Titulo, descricao, beneficios e hashtags em um texto pronto para publicar.",
+        demoStepUpload: "Upload",
+        demoStepAnalyze: "IA analisa",
+        demoStepWrite: "Texto pronto",
         loginTitle: "Entrar",
         loginSubtitle: "Acesse seu painel Vendibot.",
         registerTitle: "Criar conta",
@@ -1013,8 +1400,18 @@
         pageTitle: "Vendibot - Listing Generator",
         authBrandSubtitle: "Marketplace listing studio",
         heroTitle: "Better listings in seconds.",
-        heroSubtitle: "Upload photos, generate sales copy, and track monthly usage with one account for each seller.",
-        heroNote: "Free plan with a monthly limit. Ready for paid upgrades.",
+        heroSubtitle: "Watch Vendibot turn a simple product photo into a ready-to-publish sales listing.",
+        heroNote: "Try 5 listings for free. Manual payment while Stripe gets ready.",
+        demoBefore: "Before",
+        demoAfter: "After",
+        demoSignal: "AI writing listing",
+        demoBeforeTitle: "Before",
+        demoBeforeText: "A loose photo, short notes, and no clear price or selling angle yet.",
+        demoAfterTitle: "After",
+        demoAfterText: "Title, description, benefits, and hashtags in a ready-to-post listing.",
+        demoStepUpload: "Upload",
+        demoStepAnalyze: "AI scans",
+        demoStepWrite: "Copy ready",
         loginTitle: "Sign in",
         loginSubtitle: "Access your Vendibot dashboard.",
         registerTitle: "Create account",
@@ -1100,8 +1497,18 @@
         pageTitle: "Vendibot - Advertentiegenerator",
         authBrandSubtitle: "Marketplace listing studio",
         heroTitle: "Betere advertenties in seconden.",
-        heroSubtitle: "Upload foto's, genereer verkoopteksten en volg maandelijks gebruik per verkoper.",
-        heroNote: "Gratis abonnement met maandlimiet. Klaar voor betaalde upgrades.",
+        heroSubtitle: "Zie hoe Vendibot een simpele productfoto verandert in een kant-en-klare verkooptekst.",
+        heroNote: "Probeer 5 advertenties gratis. Betaling is handmatig zolang Stripe nog wordt ingericht.",
+        demoBefore: "Voor",
+        demoAfter: "Na",
+        demoSignal: "AI schrijft advertentie",
+        demoBeforeTitle: "Voor",
+        demoBeforeText: "Een losse foto, korte notities en nog geen duidelijke prijs of verkooppunt.",
+        demoAfterTitle: "Na",
+        demoAfterText: "Titel, beschrijving, voordelen en hashtags in een tekst die klaar is om te plaatsen.",
+        demoStepUpload: "Upload",
+        demoStepAnalyze: "AI scant",
+        demoStepWrite: "Tekst klaar",
         loginTitle: "Inloggen",
         loginSubtitle: "Open je Vendibot-dashboard.",
         registerTitle: "Account maken",
@@ -1187,8 +1594,18 @@
         pageTitle: "Vendibot - Generador de anuncios",
         authBrandSubtitle: "Marketplace listing studio",
         heroTitle: "Mejores anuncios en segundos.",
-        heroSubtitle: "Sube fotos, genera textos de venta y controla el uso mensual con una cuenta para cada vendedor.",
-        heroNote: "Plan gratis con limite mensual. Listo para upgrades pagos.",
+        heroSubtitle: "Mira como Vendibot convierte una foto simple de producto en un anuncio listo para publicar.",
+        heroNote: "Prueba 5 anuncios gratis. Pago manual mientras Stripe queda listo.",
+        demoBefore: "Antes",
+        demoAfter: "Despues",
+        demoSignal: "IA creando anuncio",
+        demoBeforeTitle: "Antes",
+        demoBeforeText: "Una foto suelta, notas cortas y sin una idea clara de precio o destaque.",
+        demoAfterTitle: "Despues",
+        demoAfterText: "Titulo, descripcion, beneficios y hashtags en un texto listo para publicar.",
+        demoStepUpload: "Upload",
+        demoStepAnalyze: "IA analiza",
+        demoStepWrite: "Texto listo",
         loginTitle: "Entrar",
         loginSubtitle: "Accede a tu panel Vendibot.",
         registerTitle: "Crear cuenta",
@@ -1284,6 +1701,20 @@
     const authView = document.getElementById("authView");
     const appView = document.getElementById("appView");
     const authForm = document.getElementById("authForm");
+    const heroTitle = document.getElementById("heroTitle");
+    const heroSubtitle = document.getElementById("heroSubtitle");
+    const demoBeforeButton = document.getElementById("demoBeforeButton");
+    const demoAfterButton = document.getElementById("demoAfterButton");
+    const demoBeforeState = document.getElementById("demoBeforeState");
+    const demoAfterState = document.getElementById("demoAfterState");
+    const demoSignal = document.getElementById("demoSignal");
+    const demoBeforeTitle = document.getElementById("demoBeforeTitle");
+    const demoBeforeText = document.getElementById("demoBeforeText");
+    const demoAfterTitle = document.getElementById("demoAfterTitle");
+    const demoAfterText = document.getElementById("demoAfterText");
+    const demoStepUpload = document.getElementById("demoStepUpload");
+    const demoStepAnalyze = document.getElementById("demoStepAnalyze");
+    const demoStepWrite = document.getElementById("demoStepWrite");
     const authTitle = document.getElementById("authTitle");
     const authSubtitle = document.getElementById("authSubtitle");
     const authSubmit = document.getElementById("authSubmit");
@@ -1376,9 +1807,19 @@
       syncUiLanguageSelects();
 
       setText(".auth-side .brand span", t("authBrandSubtitle"));
-      setText(".auth-side > div:nth-of-type(2) h1", t("heroTitle"));
-      setText(".auth-side > div:nth-of-type(2) p", t("heroSubtitle"));
+      setText(heroTitle, t("heroTitle"));
+      setText(heroSubtitle, t("heroSubtitle"));
       setText(".auth-side > p.side-note", t("heroNote"));
+      setText(demoBeforeButton, t("demoBefore"));
+      setText(demoAfterButton, t("demoAfter"));
+      setText(demoSignal, t("demoSignal"));
+      setText(demoBeforeTitle, t("demoBeforeTitle"));
+      setText(demoBeforeText, t("demoBeforeText"));
+      setText(demoAfterTitle, t("demoAfterTitle"));
+      setText(demoAfterText, t("demoAfterText"));
+      setText(demoStepUpload, t("demoStepUpload"));
+      setText(demoStepAnalyze, t("demoStepAnalyze"));
+      setText(demoStepWrite, t("demoStepWrite"));
       setText("label[for='name']", t("name"));
       setText("label[for='email']", t("email"));
       setText("label[for='resetCode']", t("resetCode"));
@@ -1436,6 +1877,15 @@
       localStorage.setItem(UI_LANGUAGE_KEY, state.uiLanguage);
       languageSelect.value = state.uiLanguage;
       applyTranslations();
+    }
+
+    function setDemoMode(mode) {
+      const isBefore = mode === "before";
+
+      demoBeforeButton.classList.toggle("is-active", isBefore);
+      demoAfterButton.classList.toggle("is-active", !isBefore);
+      demoBeforeState.classList.toggle("is-active", isBefore);
+      demoAfterState.classList.toggle("is-active", !isBefore);
     }
 
     function setStatus(element, message, type = "") {
@@ -1829,7 +2279,16 @@
       setInterfaceLanguage(appUiLanguage.value);
     });
 
+    demoBeforeButton.addEventListener("click", () => {
+      setDemoMode("before");
+    });
+
+    demoAfterButton.addEventListener("click", () => {
+      setDemoMode("after");
+    });
+
     applyTranslations();
+    setDemoMode("after");
     restoreSession();
   </script>
 </body>
