@@ -1013,22 +1013,22 @@
               <div class="demo-product">
                 <span aria-hidden="true">T</span>
                 <div>
-                  <strong>Camiseta usada</strong>
-                  <small>Foto + tamanho + estado</small>
+                  <strong id="demoProductOneTitle">Camiseta usada</strong>
+                  <small id="demoProductOneMeta">Foto + tamanho + estado</small>
                 </div>
               </div>
               <div class="demo-product">
                 <span aria-hidden="true">PC</span>
                 <div>
-                  <strong>Laptop usado</strong>
-                  <small>Marca, memoria e condicao</small>
+                  <strong id="demoProductTwoTitle">Laptop usado</strong>
+                  <small id="demoProductTwoMeta">Marca, memoria e condicao</small>
                 </div>
               </div>
               <div class="demo-product">
                 <span aria-hidden="true">M</span>
                 <div>
-                  <strong>Caneca decorativa</strong>
-                  <small>Detalhes visuais do produto</small>
+                  <strong id="demoProductThreeTitle">Caneca decorativa</strong>
+                  <small id="demoProductThreeMeta">Detalhes visuais do produto</small>
                 </div>
               </div>
             </div>
@@ -1046,9 +1046,9 @@
               <h2 id="demoBeforeTitle">Antes</h2>
               <p id="demoBeforeText">Foto solta, descricao curta e nenhuma ideia clara de preco ou destaque.</p>
               <div class="demo-facts">
-                <span>foto</span>
-                <span>produto</span>
-                <span>rascunho</span>
+                <span id="demoFactPhoto">foto</span>
+                <span id="demoFactProduct">produto</span>
+                <span id="demoFactDraft">rascunho</span>
               </div>
             </div>
             <div id="demoAfterState" class="demo-card-state is-active">
@@ -1315,6 +1315,15 @@
         demoStepUpload: "Upload",
         demoStepAnalyze: "IA analisa",
         demoStepWrite: "Texto pronto",
+        demoProductOneTitle: "Camiseta usada",
+        demoProductOneMeta: "Foto + tamanho + estado",
+        demoProductTwoTitle: "Laptop usado",
+        demoProductTwoMeta: "Marca, memoria e condicao",
+        demoProductThreeTitle: "Caneca decorativa",
+        demoProductThreeMeta: "Detalhes visuais do produto",
+        demoFactPhoto: "foto",
+        demoFactProduct: "produto",
+        demoFactDraft: "rascunho",
         loginTitle: "Entrar",
         loginSubtitle: "Acesse seu painel Vendibot.",
         registerTitle: "Criar conta",
@@ -1412,6 +1421,15 @@
         demoStepUpload: "Upload",
         demoStepAnalyze: "AI scans",
         demoStepWrite: "Copy ready",
+        demoProductOneTitle: "Used t-shirt",
+        demoProductOneMeta: "Photo + size + condition",
+        demoProductTwoTitle: "Used laptop",
+        demoProductTwoMeta: "Brand, memory, and condition",
+        demoProductThreeTitle: "Decorative mug",
+        demoProductThreeMeta: "Visual product details",
+        demoFactPhoto: "photo",
+        demoFactProduct: "product",
+        demoFactDraft: "draft",
         loginTitle: "Sign in",
         loginSubtitle: "Access your Vendibot dashboard.",
         registerTitle: "Create account",
@@ -1509,6 +1527,15 @@
         demoStepUpload: "Upload",
         demoStepAnalyze: "AI scant",
         demoStepWrite: "Tekst klaar",
+        demoProductOneTitle: "Gebruikt T-shirt",
+        demoProductOneMeta: "Foto + maat + staat",
+        demoProductTwoTitle: "Gebruikte laptop",
+        demoProductTwoMeta: "Merk, geheugen en staat",
+        demoProductThreeTitle: "Decoratieve mok",
+        demoProductThreeMeta: "Visuele productdetails",
+        demoFactPhoto: "foto",
+        demoFactProduct: "product",
+        demoFactDraft: "concept",
         loginTitle: "Inloggen",
         loginSubtitle: "Open je Vendibot-dashboard.",
         registerTitle: "Account maken",
@@ -1606,6 +1633,15 @@
         demoStepUpload: "Upload",
         demoStepAnalyze: "IA analiza",
         demoStepWrite: "Texto listo",
+        demoProductOneTitle: "Camiseta usada",
+        demoProductOneMeta: "Foto + talla + estado",
+        demoProductTwoTitle: "Laptop usado",
+        demoProductTwoMeta: "Marca, memoria y estado",
+        demoProductThreeTitle: "Taza decorativa",
+        demoProductThreeMeta: "Detalles visuales del producto",
+        demoFactPhoto: "foto",
+        demoFactProduct: "producto",
+        demoFactDraft: "borrador",
         loginTitle: "Entrar",
         loginSubtitle: "Accede a tu panel Vendibot.",
         registerTitle: "Crear cuenta",
@@ -1715,6 +1751,15 @@
     const demoStepUpload = document.getElementById("demoStepUpload");
     const demoStepAnalyze = document.getElementById("demoStepAnalyze");
     const demoStepWrite = document.getElementById("demoStepWrite");
+    const demoProductOneTitle = document.getElementById("demoProductOneTitle");
+    const demoProductOneMeta = document.getElementById("demoProductOneMeta");
+    const demoProductTwoTitle = document.getElementById("demoProductTwoTitle");
+    const demoProductTwoMeta = document.getElementById("demoProductTwoMeta");
+    const demoProductThreeTitle = document.getElementById("demoProductThreeTitle");
+    const demoProductThreeMeta = document.getElementById("demoProductThreeMeta");
+    const demoFactPhoto = document.getElementById("demoFactPhoto");
+    const demoFactProduct = document.getElementById("demoFactProduct");
+    const demoFactDraft = document.getElementById("demoFactDraft");
     const authTitle = document.getElementById("authTitle");
     const authSubtitle = document.getElementById("authSubtitle");
     const authSubmit = document.getElementById("authSubmit");
@@ -1820,6 +1865,15 @@
       setText(demoStepUpload, t("demoStepUpload"));
       setText(demoStepAnalyze, t("demoStepAnalyze"));
       setText(demoStepWrite, t("demoStepWrite"));
+      setText(demoProductOneTitle, t("demoProductOneTitle"));
+      setText(demoProductOneMeta, t("demoProductOneMeta"));
+      setText(demoProductTwoTitle, t("demoProductTwoTitle"));
+      setText(demoProductTwoMeta, t("demoProductTwoMeta"));
+      setText(demoProductThreeTitle, t("demoProductThreeTitle"));
+      setText(demoProductThreeMeta, t("demoProductThreeMeta"));
+      setText(demoFactPhoto, t("demoFactPhoto"));
+      setText(demoFactProduct, t("demoFactProduct"));
+      setText(demoFactDraft, t("demoFactDraft"));
       setText("label[for='name']", t("name"));
       setText("label[for='email']", t("email"));
       setText("label[for='resetCode']", t("resetCode"));
