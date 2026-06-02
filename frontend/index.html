@@ -908,10 +908,10 @@
           <strong id="proPlanTitle">Pro mensal</strong>
           <div id="proPlanPrice" class="plan-price">€9/mes</div>
           <p id="proPlanNote" class="plan-note">60 anuncios por mes, melhor para uso constante.</p>
-          <button id="startProCheckoutButton" class="btn btn-primary" type="button">Assinar Pro</button>
+          <button id="startProCheckoutButton" class="btn btn-primary" type="button">Solicitar Pro</button>
         </article>
       </div>
-      <p id="plansFootnote" class="plan-note">Pacotes de creditos entram na proxima etapa do Stripe. O Pro mensal ja usa o checkout conectado.</p>
+      <p id="plansFootnote" class="plan-note">Pagamento manual por enquanto. O checkout online entra quando a conta Stripe estiver pronta.</p>
     </section>
   </div>
 
@@ -999,8 +999,9 @@
         regularPlanNote: "30 creditos para vendedores recorrentes.",
         proPlanTitle: "Pro mensal",
         proPlanNote: "60 anuncios por mes, melhor para uso constante.",
-        startPro: "Assinar Pro",
-        plansFootnote: "Pacotes de creditos entram na proxima etapa do Stripe. O Pro mensal ja usa o checkout conectado.",
+        startPro: "Solicitar Pro",
+        plansFootnote: "Pagamento manual por enquanto. O checkout online entra quando a conta Stripe estiver pronta.",
+        manualProRequested: "Pedido de Pro registrado. Envie uma mensagem ao suporte com o email da sua conta: {email}",
         historyTitle: "Historico",
         historySubtitle: "Seus ultimos anuncios gerados.",
         refresh: "Atualizar",
@@ -1085,8 +1086,9 @@
         regularPlanNote: "30 credits for recurring sellers.",
         proPlanTitle: "Monthly Pro",
         proPlanNote: "60 listings per month, best for steady use.",
-        startPro: "Subscribe to Pro",
-        plansFootnote: "Credit packs are the next Stripe step. Monthly Pro already uses the connected checkout.",
+        startPro: "Request Pro",
+        plansFootnote: "Manual payment for now. Online checkout will be added when the Stripe account is ready.",
+        manualProRequested: "Pro request noted. Please message support with your account email: {email}",
         historyTitle: "History",
         historySubtitle: "Your latest generated listings.",
         refresh: "Refresh",
@@ -1171,8 +1173,9 @@
         regularPlanNote: "30 credits voor terugkerende verkopers.",
         proPlanTitle: "Pro per maand",
         proPlanNote: "60 advertenties per maand, ideaal voor vast gebruik.",
-        startPro: "Pro nemen",
-        plansFootnote: "Creditpakketten zijn de volgende Stripe-stap. Pro per maand gebruikt al de verbonden checkout.",
+        startPro: "Pro aanvragen",
+        plansFootnote: "Betaling is voorlopig handmatig. Online checkout komt zodra het Stripe-account klaar is.",
+        manualProRequested: "Pro-aanvraag genoteerd. Stuur support een bericht met je account-e-mail: {email}",
         historyTitle: "Geschiedenis",
         historySubtitle: "Je laatst gegenereerde advertenties.",
         refresh: "Vernieuwen",
@@ -1257,8 +1260,9 @@
         regularPlanNote: "30 creditos para vendedores recurrentes.",
         proPlanTitle: "Pro mensual",
         proPlanNote: "60 anuncios al mes, mejor para uso constante.",
-        startPro: "Suscribirse a Pro",
-        plansFootnote: "Los paquetes de creditos son el siguiente paso de Stripe. Pro mensual ya usa el checkout conectado.",
+        startPro: "Solicitar Pro",
+        plansFootnote: "Pago manual por ahora. El checkout online se agregara cuando la cuenta Stripe este lista.",
+        manualProRequested: "Solicitud de Pro registrada. Envia un mensaje a soporte con el email de tu cuenta: {email}",
         historyTitle: "Historial",
         historySubtitle: "Tus ultimos anuncios generados.",
         refresh: "Actualizar",
@@ -1638,26 +1642,12 @@
       plansModal.classList.add("hidden");
     }
 
-    async function startProCheckout() {
-      setStatus(generatorStatus, "");
-      setLoading(startProCheckoutButton, true, t("startPro"), t("opening"));
+    function requestManualPro() {
+      const accountEmail = state.user?.email || "";
+      const message = t("manualProRequested").replace("{email}", accountEmail);
 
-      try {
-        const data = await apiFetch("/billing/create-checkout-session", {
-          method: "POST",
-          body: JSON.stringify({}),
-        });
-
-        if (!data.url) {
-          throw new Error(t("checkoutUnavailable"));
-        }
-
-        window.location.href = data.url;
-      } catch (error) {
-        setStatus(generatorStatus, error.message, "error");
-      } finally {
-        setLoading(startProCheckoutButton, false, t("startPro"), t("opening"));
-      }
+      closePlans();
+      setStatus(generatorStatus, message, "success");
     }
 
     async function restoreSession() {
@@ -1735,7 +1725,7 @@
         closePlans();
       }
     });
-    startProCheckoutButton.addEventListener("click", startProCheckout);
+    startProCheckoutButton.addEventListener("click", requestManualPro);
     refreshHistoryButton.addEventListener("click", () => loadHistory(true));
 
     imagesInput.addEventListener("change", () => {
