@@ -279,6 +279,13 @@ function normalizeDbUser(row) {
       month: row.usage_month,
       generations: Number(row.usage_generations || 0),
     },
+    analytics: {
+      creditsUsed: Number(row.credits_used || 0),
+      copyButtonClicks: Number(row.copy_button_clicks || 0),
+      vintedRedirectClicks: Number(row.vinted_redirect_clicks || 0),
+      paywallViews: Number(row.paywall_views || 0),
+      checkoutAttempts: Number(row.checkout_attempts || 0),
+    },
     stripeCustomerId: row.stripe_customer_id || "",
     stripeSubscriptionId: row.stripe_subscription_id || "",
     createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
@@ -306,6 +313,11 @@ async function initDataStore() {
       plan text NOT NULL DEFAULT 'free',
       usage_month text NOT NULL,
       usage_generations integer NOT NULL DEFAULT 0,
+      credits_used integer NOT NULL DEFAULT 0,
+      copy_button_clicks integer NOT NULL DEFAULT 0,
+      vinted_redirect_clicks integer NOT NULL DEFAULT 0,
+      paywall_views integer NOT NULL DEFAULT 0,
+      checkout_attempts integer NOT NULL DEFAULT 0,
       stripe_customer_id text,
       stripe_subscription_id text,
       created_at timestamptz NOT NULL DEFAULT now(),
@@ -315,6 +327,13 @@ async function initDataStore() {
 
     CREATE INDEX IF NOT EXISTS users_stripe_customer_id_idx
       ON users (stripe_customer_id);
+
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS credits_used integer NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS copy_button_clicks integer NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS vinted_redirect_clicks integer NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS paywall_views integer NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS checkout_attempts integer NOT NULL DEFAULT 0;
 
     CREATE TABLE IF NOT EXISTS anuncios (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -711,6 +730,7 @@ function safeUser(user) {
     plan: user.plan,
     usage: normalizeUsage(user),
     limit,
+    analytics: normalizeAnalytics(user),
   };
 }
 
@@ -724,6 +744,85 @@ function normalizeUsage(user) {
   }
 
   return user.usage;
+}
+
+function normalizeAnalytics(user) {
+  user.analytics = {
+    creditsUsed: Number(user.analytics?.creditsUsed || user.creditsUsed || 0),
+    copyButtonClicks: Number(
+      user.analytics?.copyButtonClicks || user.copyButtonClicks || 0,
+    ),
+    vintedRedirectClicks: Number(
+      user.analytics?.vintedRedirectClicks || user.vintedRedirectClicks || 0,
+    ),
+    paywallViews: Number(user.analytics?.paywallViews || user.paywallViews || 0),
+    checkoutAttempts: Number(
+      user.analytics?.checkoutAttempts || user.checkoutAttempts || 0,
+    ),
+  };
+
+  return user.analytics;
+}
+
+const analyticsEvents = {
+  generation_success: "credits_used",
+  copy_button_click: "copy_button_clicks",
+  vinted_redirect_click: "vinted_redirect_clicks",
+  paywall_view: "paywall_views",
+  checkout_attempt: "checkout_attempts",
+};
+
+const analyticsColumnToKey = {
+  credits_used: "creditsUsed",
+  copy_button_clicks: "copyButtonClicks",
+  vinted_redirect_clicks: "vintedRedirectClicks",
+  paywall_views: "paywallViews",
+  checkout_attempts: "checkoutAttempts",
+};
+
+async function incrementUserAnalytics(user, eventName) {
+  const column = analyticsEvents[eventName];
+
+  if (!column) {
+    return null;
+  }
+
+  const analyticsKey = analyticsColumnToKey[column];
+
+  if (!pool) {
+    const analytics = normalizeAnalytics(user);
+    analytics[analyticsKey] += 1;
+    await updateUser(user);
+    return analytics;
+  }
+
+  const result = await pool.query(
+    `UPDATE users
+      SET ${column} = ${column} + 1,
+          updated_at = now()
+      WHERE id = $1
+      RETURNING
+        credits_used,
+        copy_button_clicks,
+        vinted_redirect_clicks,
+        paywall_views,
+        checkout_attempts`,
+    [user.id],
+  );
+
+  if (!result.rows[0]) {
+    return null;
+  }
+
+  user.analytics = {
+    creditsUsed: Number(result.rows[0].credits_used || 0),
+    copyButtonClicks: Number(result.rows[0].copy_button_clicks || 0),
+    vintedRedirectClicks: Number(result.rows[0].vinted_redirect_clicks || 0),
+    paywallViews: Number(result.rows[0].paywall_views || 0),
+    checkoutAttempts: Number(result.rows[0].checkout_attempts || 0),
+  };
+
+  return user.analytics;
 }
 
 async function requireAuth(req, res, next) {
@@ -940,6 +1039,24 @@ app.get("/anuncios", requireAuth, async (req, res, next) => {
   try {
     const listings = await listUserListings(req.user, req.query.limit || 10);
     res.json({ listings });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post("/analytics/event", requireAuth, async (req, res, next) => {
+  try {
+    const analytics = await incrementUserAnalytics(
+      req.user,
+      String(req.body?.event || ""),
+    );
+
+    if (!analytics) {
+      res.status(400).json({ error: "Evento de analytics invalido." });
+      return;
+    }
+
+    res.json({ ok: true, analytics });
   } catch (err) {
     next(err);
   }
@@ -1172,6 +1289,7 @@ ${languageSettings.format}
 
       usage.generations += 1;
       await updateUser(req.user);
+      await incrementUserAnalytics(req.user, "generation_success");
       const listing = await createListingRecord(req.user, {
         result: response.output_text,
         marketplace: cleanMarketplace,
@@ -1196,6 +1314,38 @@ ${languageSettings.format}
     }
   },
 );
+
+app.get("/admin/analytics", requireAuth, async (req, res, next) => {
+  try {
+    if (process.env.ADMIN_EMAIL !== req.user.email) {
+      res.status(403).json({ error: "Acesso negado." });
+      return;
+    }
+
+    const users = await getAllUsers();
+    const summary = users.map((user) => {
+      const analytics = normalizeAnalytics(user);
+
+      return {
+        id: user.id,
+        email: user.email,
+        creditsUsed: analytics.creditsUsed,
+        creditsUsedLabel: `${analytics.creditsUsed} / ${FREE_MONTHLY_LIMIT}`,
+        timesCopied: analytics.copyButtonClicks,
+        vintedRedirectClicks: analytics.vintedRedirectClicks,
+        redirectedToVinted: analytics.vintedRedirectClicks > 0,
+        paywallViews: analytics.paywallViews,
+        sawPaywall: analytics.paywallViews > 0,
+        checkoutAttempts: analytics.checkoutAttempts,
+        attemptedToPay: analytics.checkoutAttempts > 0,
+      };
+    });
+
+    res.json({ users: summary });
+  } catch (err) {
+    next(err);
+  }
+});
 
 app.get("/admin/users", requireAuth, async (req, res, next) => {
   try {

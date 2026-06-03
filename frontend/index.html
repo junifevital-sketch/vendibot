@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Vendibot - Gerador de Anúncios</title>
+  <!-- Microsoft Clarity: paste your project tracking script here, before the style tag. -->
   <style>
     :root {
       color-scheme: light;
@@ -508,6 +509,7 @@
       display: grid;
       gap: 10px;
       background: var(--surface-soft);
+      cursor: pointer;
     }
 
     .plan-card strong {
@@ -1984,6 +1986,7 @@
     const proPlanNote = document.getElementById("proPlanNote");
     const startProCheckoutButton = document.getElementById("startProCheckoutButton");
     const plansFootnote = document.getElementById("plansFootnote");
+    const planCards = document.querySelectorAll(".plan-card");
 
     function getInitialUiLanguage() {
       const savedLanguage = localStorage.getItem(UI_LANGUAGE_KEY);
@@ -2158,6 +2161,18 @@
       return data;
     }
 
+    function trackAnalyticsEvent(eventName) {
+      if (!state.token) {
+        return;
+      }
+
+      apiFetch("/analytics/event", {
+        method: "POST",
+        body: JSON.stringify({ event: eventName }),
+        keepalive: true,
+      }).catch(() => {});
+    }
+
     function updateAuthMode() {
       const isRegister = state.mode === "register";
       const isReset = state.mode === "reset";
@@ -2321,6 +2336,7 @@
 
     function openPlans() {
       plansModal.classList.remove("hidden");
+      trackAnalyticsEvent("paywall_view");
     }
 
     function hasNoRemainingCredits() {
@@ -2337,6 +2353,7 @@
       const accountEmail = state.user?.email || "";
       const message = t("manualProRequested").replace("{email}", accountEmail);
 
+      trackAnalyticsEvent("checkout_attempt");
       closePlans();
       setStatus(generatorStatus, message, "success");
     }
@@ -2417,6 +2434,9 @@
       }
     });
     startProCheckoutButton.addEventListener("click", requestManualPro);
+    planCards.forEach((planCard) => {
+      planCard.addEventListener("click", requestManualPro);
+    });
     refreshHistoryButton.addEventListener("click", () => loadHistory(true));
 
     imagesInput.addEventListener("change", () => {
@@ -2510,7 +2530,12 @@
       }
 
       await navigator.clipboard.writeText(state.result);
+      trackAnalyticsEvent("copy_button_click");
       setStatus(generatorStatus, t("copied"), "success");
+    });
+
+    vintedLink.addEventListener("click", () => {
+      trackAnalyticsEvent("vinted_redirect_click");
     });
 
     const checkoutStatus = new URLSearchParams(window.location.search).get("checkout");
