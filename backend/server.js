@@ -520,7 +520,8 @@ async function createListingRecord(user, listing) {
         "Title",
         "Titulo",
         "Titel",
-        "Titulo",
+        "Titre",
+        "Titolo",
       ]),
     suggestedPrice:
       listing.suggestedPrice ||
@@ -529,6 +530,8 @@ async function createListingRecord(user, listing) {
         "Preco sugerido",
         "Adviesprijs",
         "Precio sugerido",
+        "Prix suggere",
+        "Prezzo suggerito",
       ]),
     description: listing.description || "",
     highlights: listing.highlights || [],
@@ -986,6 +989,20 @@ Highlights:
 Hashtags:
 #tag #tag #tag`,
   },
+  fr: {
+    name: "French",
+    currency: "Use EUR unless the context clearly indicates another currency.",
+    format: `Titre:
+Prix suggere:
+Description:
+Points forts:
+- item
+- item
+- item
+
+Hashtags:
+#tag #tag #tag`,
+  },
   nl: {
     name: "Dutch",
     currency: "Use EUR unless the context clearly indicates another currency.",
@@ -1007,6 +1024,20 @@ Hashtags:
 Precio sugerido:
 Descripcion:
 Destacados:
+- item
+- item
+- item
+
+Hashtags:
+#tag #tag #tag`,
+  },
+  it: {
+    name: "Italian",
+    currency: "Use EUR unless the context clearly indicates another currency.",
+    format: `Titolo:
+Prezzo suggerito:
+Descrizione:
+Punti forti:
 - item
 - item
 - item
