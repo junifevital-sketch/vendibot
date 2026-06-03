@@ -8,13 +8,35 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const migrationsDir = path.join(__dirname, "..", "migrations");
 
+function normalizePostgresUrl(databaseUrl) {
+  if (!databaseUrl) {
+    return "";
+  }
+
+  try {
+    const parsedUrl = new URL(databaseUrl);
+    const sslMode = parsedUrl.searchParams.get("sslmode");
+
+    if (["prefer", "require", "verify-ca"].includes(sslMode)) {
+      parsedUrl.searchParams.set("sslmode", "verify-full");
+    }
+
+    return parsedUrl.toString();
+  } catch {
+    return databaseUrl.replace(
+      /([?&]sslmode=)(prefer|require|verify-ca)(?=&|$)/i,
+      "$1verify-full",
+    );
+  }
+}
+
 if (!process.env.DATABASE_URL) {
   console.error("Defina DATABASE_URL antes de rodar as migracoes.");
   process.exit(1);
 }
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: normalizePostgresUrl(process.env.DATABASE_URL),
   ssl:
     process.env.DATABASE_SSL === "false" ? false : { rejectUnauthorized: false },
 });

@@ -58,6 +58,28 @@ function loadEnvFile(filePath) {
 
 loadEnvFile(path.join(__dirname, ".env"));
 
+function normalizePostgresUrl(databaseUrl) {
+  if (!databaseUrl) {
+    return "";
+  }
+
+  try {
+    const parsedUrl = new URL(databaseUrl);
+    const sslMode = parsedUrl.searchParams.get("sslmode");
+
+    if (["prefer", "require", "verify-ca"].includes(sslMode)) {
+      parsedUrl.searchParams.set("sslmode", "verify-full");
+    }
+
+    return parsedUrl.toString();
+  } catch {
+    return databaseUrl.replace(
+      /([?&]sslmode=)(prefer|require|verify-ca)(?=&|$)/i,
+      "$1verify-full",
+    );
+  }
+}
+
 const app = express();
 const PORT = Number(process.env.PORT || 3001);
 const NODE_ENV = process.env.NODE_ENV || "development";
@@ -83,7 +105,7 @@ const ALLOWED_ORIGINS = (
   .split(",")
   .map((origin) => origin.trim().replace(/\/$/, ""))
   .filter(Boolean);
-const DATABASE_URL = process.env.DATABASE_URL || "";
+const DATABASE_URL = normalizePostgresUrl(process.env.DATABASE_URL || "");
 const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID || "";
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "";
 
