@@ -277,6 +277,10 @@ app.post(
   },
 );
 
+app.get("/billing/wise/webhook", (_req, res) => {
+  res.json({ ok: true, webhook: "wise" });
+});
+
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static(frontendDir));
 
@@ -933,6 +937,7 @@ function verifyWiseWebhookSignature(req) {
   }
 
   const signature =
+    req.headers["x-signature-sha256"] ||
     req.headers["x-signature"] ||
     req.headers["x-wise-signature-sha256"] ||
     req.headers["x-test-notification-signature"];
@@ -943,7 +948,7 @@ function verifyWiseWebhookSignature(req) {
     throw err;
   }
 
-  const normalizedSignature = String(signature).replace(/^sha256=/, "");
+  const normalizedSignature = String(signature).replace(/^sha256=/i, "");
   const isValid = crypto.verify(
     "RSA-SHA256",
     req.body,
