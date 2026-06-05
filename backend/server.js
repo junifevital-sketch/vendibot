@@ -108,6 +108,41 @@ const ALLOWED_ORIGINS = (
 const DATABASE_URL = normalizePostgresUrl(process.env.DATABASE_URL || "");
 const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID || "";
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "";
+const WISE_API_TOKEN = process.env.WISE_API_TOKEN || "";
+const WISE_PROFILE_ID = process.env.WISE_PROFILE_ID || "";
+const WISE_PAYMENT_LINK_URL = (process.env.WISE_PAYMENT_LINK_URL || "").trim();
+const WISE_ENVIRONMENT = (process.env.WISE_ENVIRONMENT || "production").toLowerCase();
+const WISE_API_BASE_URL =
+  process.env.WISE_API_BASE_URL ||
+  (WISE_ENVIRONMENT === "sandbox"
+    ? "https://api.wise-sandbox.com"
+    : "https://api.wise.com");
+
+const CREDIT_PACKAGES = {
+  credits_10: { key: "credits_10", credits: 10, amountCents: 300 },
+  credits_30: { key: "credits_30", credits: 30, amountCents: 700 },
+  credits_60: { key: "credits_60", credits: 60, amountCents: 900 },
+};
+
+const WISE_PRODUCTION_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvO8vXV+JksBzZAY6GhSO
+XdoTCfhXaaiZ+qAbtaDBiu2AGkGVpmEygFmWP4Li9m5+Ni85BhVvZOodM9epgW3F
+bA5Q1SexvAF1PPjX4JpMstak/QhAgl1qMSqEevL8cmUeTgcMuVWCJmlge9h7B1CS
+D4rtlimGZozG39rUBDg6Qt2K+P4wBfLblL0k4C4YUdLnpGYEDIth+i8XsRpFlogx
+CAFyH9+knYsDbR43UJ9shtc42Ybd40Afihj8KnYKXzchyQ42aC8aZ/h5hyZ28yVy
+Oj3Vos0VdBIs/gAyJ/4yyQFCXYte64I7ssrlbGRaco4nKF3HmaNhxwyKyJafz19e
+HwIDAQAB
+-----END PUBLIC KEY-----`;
+
+const WISE_SANDBOX_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwpb91cEYuyJNQepZAVfP
+ZIlPZfNUefH+n6w9SW3fykqKu938cR7WadQv87oF2VuT+fDt7kqeRziTmPSUhqPU
+ys/V2Q1rlfJuXbE+Gga37t7zwd0egQ+KyOEHQOpcTwKmtZ81ieGHynAQzsn1We3j
+wt760MsCPJ7GMT141ByQM+yW1Bx+4SG3IGjXWyqOWrcXsxAvIXkpUD/jK/L958Cg
+nZEgz0BSEh0QxYLITnW1lLokSx/dTianWPFEhMC9BgijempgNXHNfcVirg1lPSyg
+z7KqoKUN0oHqWLr2U1A+7kqrl6O2nx3CKs1bj1hToT1+p4kcMoHXA7kA+VBLUpEs
+VwIDAQAB
+-----END PUBLIC KEY-----`;
 
 if (!process.env.SESSION_SECRET) {
   console.warn("Aviso: defina SESSION_SECRET em producao.");
@@ -119,6 +154,16 @@ if (!process.env.OPENAI_API_KEY) {
 
 if (!PASSWORD_RESET_CODE) {
   console.warn("Aviso: defina PASSWORD_RESET_CODE para recuperar senhas.");
+}
+
+if (!WISE_PAYMENT_LINK_URL) {
+  console.warn(
+    "Aviso: defina WISE_PAYMENT_LINK_URL para abrir o link de pagamento da Wise.",
+  );
+}
+
+if (!WISE_API_TOKEN || !WISE_PROFILE_ID) {
+  console.warn("Aviso: defina WISE_API_TOKEN e WISE_PROFILE_ID para a Wise.");
 }
 
 if (IS_PRODUCTION && !DATABASE_URL) {
@@ -216,6 +261,22 @@ app.post(
   },
 );
 
+app.post(
+  "/billing/wise/webhook",
+  express.raw({ type: "application/json" }),
+  async (req, res) => {
+    try {
+      await handleWiseWebhook(req);
+      res.json({ received: true });
+    } catch (err) {
+      console.error("Falha ao processar webhook da Wise:", err);
+      res.status(err.status || 400).json({
+        error: err.message || "Webhook Wise invalido.",
+      });
+    }
+  },
+);
+
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static(frontendDir));
 
@@ -286,6 +347,7 @@ function normalizeDbUser(row) {
       paywallViews: Number(row.paywall_views || 0),
       checkoutAttempts: Number(row.checkout_attempts || 0),
     },
+    creditsBalance: Number(row.credits_balance || 0),
     stripeCustomerId: row.stripe_customer_id || "",
     stripeSubscriptionId: row.stripe_subscription_id || "",
     createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
@@ -313,6 +375,7 @@ async function initDataStore() {
       plan text NOT NULL DEFAULT 'free',
       usage_month text NOT NULL,
       usage_generations integer NOT NULL DEFAULT 0,
+      credits_balance integer NOT NULL DEFAULT 0,
       credits_used integer NOT NULL DEFAULT 0,
       copy_button_clicks integer NOT NULL DEFAULT 0,
       vinted_redirect_clicks integer NOT NULL DEFAULT 0,
@@ -329,11 +392,41 @@ async function initDataStore() {
       ON users (stripe_customer_id);
 
     ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS credits_balance integer NOT NULL DEFAULT 0,
       ADD COLUMN IF NOT EXISTS credits_used integer NOT NULL DEFAULT 0,
       ADD COLUMN IF NOT EXISTS copy_button_clicks integer NOT NULL DEFAULT 0,
       ADD COLUMN IF NOT EXISTS vinted_redirect_clicks integer NOT NULL DEFAULT 0,
       ADD COLUMN IF NOT EXISTS paywall_views integer NOT NULL DEFAULT 0,
       ADD COLUMN IF NOT EXISTS checkout_attempts integer NOT NULL DEFAULT 0;
+
+    CREATE TABLE IF NOT EXISTS wise_credit_orders (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+      package_key text NOT NULL,
+      credits integer NOT NULL,
+      amount_cents integer NOT NULL,
+      currency text NOT NULL DEFAULT 'EUR',
+      reference text UNIQUE NOT NULL,
+      status text NOT NULL DEFAULT 'pending',
+      wise_transfer_id text,
+      wise_delivery_id text,
+      raw_event jsonb,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      paid_at timestamptz,
+      updated_at timestamptz NOT NULL DEFAULT now()
+    );
+
+    CREATE INDEX IF NOT EXISTS wise_credit_orders_user_id_created_at_idx
+      ON wise_credit_orders (user_id, created_at DESC);
+
+    CREATE INDEX IF NOT EXISTS wise_credit_orders_status_amount_idx
+      ON wise_credit_orders (status, currency, amount_cents);
+
+    CREATE TABLE IF NOT EXISTS wise_webhook_events (
+      delivery_id text PRIMARY KEY,
+      event_type text,
+      processed_at timestamptz NOT NULL DEFAULT now()
+    );
 
     CREATE TABLE IF NOT EXISTS anuncios (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -503,6 +596,7 @@ async function updateUser(user) {
           stripe_customer_id = $9,
           stripe_subscription_id = $10,
           password_changed_at = $11,
+          credits_balance = $12,
           updated_at = now()
       WHERE id = $1`,
     [
@@ -517,6 +611,7 @@ async function updateUser(user) {
       user.stripeCustomerId || null,
       user.stripeSubscriptionId || null,
       user.passwordChangedAt || null,
+      Number(user.creditsBalance || 0),
     ],
   );
 
@@ -730,6 +825,7 @@ function safeUser(user) {
     plan: user.plan,
     usage: normalizeUsage(user),
     limit,
+    creditsBalance: Number(user.creditsBalance || 0),
     analytics: normalizeAnalytics(user),
   };
 }
@@ -825,6 +921,352 @@ async function incrementUserAnalytics(user, eventName) {
   return user.analytics;
 }
 
+function getWisePublicKey() {
+  return WISE_ENVIRONMENT === "sandbox"
+    ? WISE_SANDBOX_PUBLIC_KEY
+    : WISE_PRODUCTION_PUBLIC_KEY;
+}
+
+function verifyWiseWebhookSignature(req) {
+  if (process.env.WISE_WEBHOOK_VERIFY === "false") {
+    return true;
+  }
+
+  const signature =
+    req.headers["x-signature"] ||
+    req.headers["x-wise-signature-sha256"] ||
+    req.headers["x-test-notification-signature"];
+
+  if (!signature) {
+    const err = new Error("Assinatura Wise ausente.");
+    err.status = 401;
+    throw err;
+  }
+
+  const normalizedSignature = String(signature).replace(/^sha256=/, "");
+  const isValid = crypto.verify(
+    "RSA-SHA256",
+    req.body,
+    getWisePublicKey(),
+    Buffer.from(normalizedSignature, "base64"),
+  );
+
+  if (!isValid) {
+    const err = new Error("Assinatura Wise invalida.");
+    err.status = 401;
+    throw err;
+  }
+
+  return true;
+}
+
+function createWisePaymentUrl(order) {
+  if (!WISE_PAYMENT_LINK_URL) {
+    return "";
+  }
+
+  try {
+    const url = new URL(WISE_PAYMENT_LINK_URL);
+    url.searchParams.set("reference", order.reference);
+    url.searchParams.set("amount", (order.amountCents / 100).toFixed(2));
+    url.searchParams.set("currency", order.currency);
+    return url.toString();
+  } catch {
+    return WISE_PAYMENT_LINK_URL;
+  }
+}
+
+function generateWiseReference() {
+  return `VENDIBOT-${crypto.randomBytes(5).toString("hex").toUpperCase()}`;
+}
+
+async function createWiseCreditOrder(user, packageKey) {
+  const selectedPackage = CREDIT_PACKAGES[packageKey];
+
+  if (!selectedPackage) {
+    return null;
+  }
+
+  const order = {
+    id: crypto.randomUUID(),
+    userId: user.id,
+    packageKey: selectedPackage.key,
+    credits: selectedPackage.credits,
+    amountCents: selectedPackage.amountCents,
+    currency: "EUR",
+    reference: generateWiseReference(),
+    status: "pending",
+    paymentUrl: "",
+    createdAt: new Date().toISOString(),
+  };
+
+  if (!pool) {
+    user.wiseCreditOrders = [order, ...(user.wiseCreditOrders || [])];
+    await updateUser(user);
+    order.paymentUrl = createWisePaymentUrl(order);
+    return order;
+  }
+
+  const result = await pool.query(
+    `INSERT INTO wise_credit_orders (
+      id, user_id, package_key, credits, amount_cents, currency, reference
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+    RETURNING id, user_id, package_key, credits, amount_cents, currency,
+      reference, status, created_at`,
+    [
+      order.id,
+      order.userId,
+      order.packageKey,
+      order.credits,
+      order.amountCents,
+      order.currency,
+      order.reference,
+    ],
+  );
+
+  const row = result.rows[0];
+  const savedOrder = {
+    id: row.id,
+    userId: row.user_id,
+    packageKey: row.package_key,
+    credits: Number(row.credits),
+    amountCents: Number(row.amount_cents),
+    currency: row.currency,
+    reference: row.reference,
+    status: row.status,
+    paymentUrl: "",
+    createdAt:
+      row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+  };
+  savedOrder.paymentUrl = createWisePaymentUrl(savedOrder);
+
+  return savedOrder;
+}
+
+function getWiseEventType(event) {
+  return String(
+    event?.event_type ||
+      event?.eventType ||
+      event?.subscription_type ||
+      event?.type ||
+      "",
+  );
+}
+
+function getWiseDeliveryId(req, event) {
+  return String(
+    req.headers["x-delivery-id"] ||
+      req.headers["x-wise-delivery-id"] ||
+      event?.delivery_id ||
+      event?.deliveryId ||
+      event?.id ||
+      crypto.createHash("sha256").update(req.body).digest("hex"),
+  );
+}
+
+function flattenWiseStrings(value, output = []) {
+  if (value === null || value === undefined) {
+    return output;
+  }
+
+  if (typeof value === "string" || typeof value === "number") {
+    output.push(String(value));
+    return output;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((item) => flattenWiseStrings(item, output));
+    return output;
+  }
+
+  if (typeof value === "object") {
+    Object.values(value).forEach((item) => flattenWiseStrings(item, output));
+  }
+
+  return output;
+}
+
+function extractWiseReference(event) {
+  return (
+    flattenWiseStrings(event)
+      .find((value) => /VENDIBOT-[A-F0-9]{10}/i.test(value))
+      ?.match(/VENDIBOT-[A-F0-9]{10}/i)?.[0]
+      .toUpperCase() || ""
+  );
+}
+
+function extractWiseAmountCents(event) {
+  const candidates = [
+    event?.amount,
+    event?.data?.amount,
+    event?.data?.resource?.amount,
+    event?.resource?.amount,
+    event?.resource?.details?.amount,
+    event?.data?.current_state?.amount,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "number") {
+      return Math.round(candidate * 100);
+    }
+
+    if (typeof candidate?.value === "number") {
+      return Math.round(candidate.value * 100);
+    }
+
+    if (typeof candidate?.amount === "number") {
+      return Math.round(candidate.amount * 100);
+    }
+  }
+
+  return 0;
+}
+
+function extractWiseCurrency(event) {
+  return String(
+    event?.currency ||
+      event?.data?.currency ||
+      event?.data?.resource?.currency ||
+      event?.resource?.currency ||
+      event?.resource?.details?.currency ||
+      event?.data?.current_state?.currency ||
+      "EUR",
+  ).toUpperCase();
+}
+
+function extractWiseTransferId(event) {
+  return String(
+    event?.transfer_id ||
+      event?.transferId ||
+      event?.resource?.id ||
+      event?.data?.resource?.id ||
+      event?.data?.transfer_id ||
+      "",
+  );
+}
+
+async function findPendingWiseOrder({ reference, amountCents, currency }) {
+  if (!pool) {
+    return null;
+  }
+
+  if (reference) {
+    const byReference = await pool.query(
+      `SELECT * FROM wise_credit_orders
+      WHERE reference = $1 AND status = 'pending'
+      LIMIT 1`,
+      [reference],
+    );
+
+    if (byReference.rows[0]) {
+      return byReference.rows[0];
+    }
+  }
+
+  if (!amountCents || !currency) {
+    return null;
+  }
+
+  const byAmount = await pool.query(
+    `SELECT * FROM wise_credit_orders
+    WHERE status = 'pending'
+      AND amount_cents = $1
+      AND currency = $2
+      AND created_at > now() - interval '14 days'
+    ORDER BY created_at ASC
+    LIMIT 2`,
+    [amountCents, currency],
+  );
+
+  return byAmount.rowCount === 1 ? byAmount.rows[0] : null;
+}
+
+async function creditWiseOrder(order, event, deliveryId) {
+  if (!pool || !order) {
+    return false;
+  }
+
+  const transferId = extractWiseTransferId(event);
+
+  const result = await pool.query(
+    `WITH paid_order AS (
+      UPDATE wise_credit_orders
+      SET status = 'paid',
+          wise_transfer_id = COALESCE($2, wise_transfer_id),
+          wise_delivery_id = $3,
+          raw_event = $4::jsonb,
+          paid_at = now(),
+          updated_at = now()
+      WHERE id = $1 AND status = 'pending'
+      RETURNING user_id, credits
+    )
+    UPDATE users
+    SET credits_balance = credits_balance + paid_order.credits,
+        updated_at = now()
+    FROM paid_order
+    WHERE users.id = paid_order.user_id
+    RETURNING users.id, users.credits_balance`,
+    [
+      order.id,
+      transferId || null,
+      deliveryId,
+      JSON.stringify(event),
+    ],
+  );
+
+  return result.rowCount > 0;
+}
+
+async function handleWiseWebhook(req) {
+  verifyWiseWebhookSignature(req);
+
+  const event = JSON.parse(req.body.toString("utf8"));
+  const eventType = getWiseEventType(event);
+  const deliveryId = getWiseDeliveryId(req, event);
+
+  if (pool) {
+    const existingDelivery = await pool.query(
+      "SELECT 1 FROM wise_webhook_events WHERE delivery_id = $1",
+      [deliveryId],
+    );
+
+    if (existingDelivery.rowCount > 0) {
+      return;
+    }
+
+    await pool.query(
+      `INSERT INTO wise_webhook_events (delivery_id, event_type)
+      VALUES ($1, $2)
+      ON CONFLICT (delivery_id) DO NOTHING`,
+      [deliveryId, eventType],
+    );
+  }
+
+  const lowerType = eventType.toLowerCase();
+  const isPaymentApproved =
+    lowerType.includes("balance") ||
+    lowerType.includes("credit") ||
+    lowerType.includes("account-details-payment") ||
+    lowerType.includes("payment");
+
+  if (!isPaymentApproved) {
+    return;
+  }
+
+  const order = await findPendingWiseOrder({
+    reference: extractWiseReference(event),
+    amountCents: extractWiseAmountCents(event),
+    currency: extractWiseCurrency(event),
+  });
+
+  if (!order) {
+    console.warn("Webhook Wise recebido sem pedido pendente correspondente.");
+    return;
+  }
+
+  await creditWiseOrder(order, event, deliveryId);
+}
+
 async function requireAuth(req, res, next) {
   try {
     const payload = verifyToken(getBearerToken(req));
@@ -907,6 +1349,7 @@ app.get("/health", async (_req, res, next) => {
       ok: true,
       database: pool ? "postgres" : "json",
       payments: Boolean(stripe && STRIPE_PRICE_ID),
+      wisePayments: Boolean(WISE_API_TOKEN && WISE_PROFILE_ID && WISE_PAYMENT_LINK_URL),
     });
   } catch (err) {
     next(err);
@@ -1057,6 +1500,48 @@ app.post("/analytics/event", requireAuth, async (req, res, next) => {
     }
 
     res.json({ ok: true, analytics });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post("/billing/wise/create-payment-link", requireAuth, async (req, res, next) => {
+  try {
+    if (!WISE_API_TOKEN || !WISE_PROFILE_ID) {
+      res.status(500).json({
+        error: "Configure WISE_API_TOKEN e WISE_PROFILE_ID no backend.",
+      });
+      return;
+    }
+
+    if (!WISE_PAYMENT_LINK_URL) {
+      res.status(500).json({
+        error:
+          "Configure WISE_PAYMENT_LINK_URL com o link de pagamento da Wise.",
+      });
+      return;
+    }
+
+    const packageKey = String(req.body?.packageKey || "credits_10");
+    const order = await createWiseCreditOrder(req.user, packageKey);
+
+    if (!order) {
+      res.status(400).json({ error: "Pacote de creditos invalido." });
+      return;
+    }
+
+    await incrementUserAnalytics(req.user, "checkout_attempt");
+
+    res.status(201).json({
+      order,
+      paymentUrl: order.paymentUrl,
+      instructions: {
+        amount: (order.amountCents / 100).toFixed(2),
+        currency: order.currency,
+        reference: order.reference,
+        credits: order.credits,
+      },
+    });
   } catch (err) {
     next(err);
   }
@@ -1219,8 +1704,10 @@ app.post(
 
       const monthlyLimit =
         req.user.plan === "pro" ? PRO_MONTHLY_LIMIT : FREE_MONTHLY_LIMIT;
+      const hasFreeAllowance = !monthlyLimit || usage.generations < monthlyLimit;
+      const hasPaidCredits = Number(req.user.creditsBalance || 0) > 0;
 
-      if (usage.generations >= monthlyLimit) {
+      if (!hasFreeAllowance && !hasPaidCredits) {
         res.status(402).json({
           error:
             "Limite mensal atingido. Faca upgrade ou compre creditos para continuar.",
@@ -1287,7 +1774,12 @@ ${languageSettings.format}
         ],
       });
 
-      usage.generations += 1;
+      if (hasFreeAllowance) {
+        usage.generations += 1;
+      } else {
+        req.user.creditsBalance = Math.max(0, Number(req.user.creditsBalance || 0) - 1);
+      }
+
       await updateUser(req.user);
       await incrementUserAnalytics(req.user, "generation_success");
       const listing = await createListingRecord(req.user, {
@@ -1329,6 +1821,7 @@ app.get("/admin/analytics", requireAuth, async (req, res, next) => {
       return {
         id: user.id,
         email: user.email,
+        creditsBalance: Number(user.creditsBalance || 0),
         creditsUsed: analytics.creditsUsed,
         creditsUsedLabel: `${analytics.creditsUsed} / ${FREE_MONTHLY_LIMIT}`,
         timesCopied: analytics.copyButtonClicks,

@@ -1446,9 +1446,11 @@
         regularPlanNote: "30 creditos para vendedores recorrentes.",
         proPlanTitle: "Pro mensal",
         proPlanNote: "60 anuncios por mes, melhor para uso constante.",
-        startPro: "Solicitar Pro",
-        plansFootnote: "Pagamento manual por enquanto. O checkout online entra quando a conta Stripe estiver pronta.",
-        manualProRequested: "Pedido de Pro registrado. Envie uma mensagem ao suporte com o email da sua conta: {email}",
+        startPro: "Comprar creditos",
+        plansFootnote: "Pagamento via Wise. Os creditos entram automaticamente quando o pagamento for confirmado.",
+        paymentOpening: "Abrindo pagamento Wise...",
+        paymentReady: "Pagamento aberto. Use a referencia {reference} para liberar seus creditos automaticamente.",
+        manualProRequested: "Pagamento iniciado. Use a referencia {reference} para liberar seus creditos automaticamente.",
         historyTitle: "Historico",
         historySubtitle: "Seus ultimos anuncios gerados.",
         refresh: "Atualizar",
@@ -1553,9 +1555,11 @@
         regularPlanNote: "30 credits for recurring sellers.",
         proPlanTitle: "Monthly Pro",
         proPlanNote: "60 listings per month, best for steady use.",
-        startPro: "Request Pro",
-        plansFootnote: "Manual payment for now. Online checkout will be added when the Stripe account is ready.",
-        manualProRequested: "Pro request noted. Please message support with your account email: {email}",
+        startPro: "Buy credits",
+        plansFootnote: "Payment via Wise. Credits are added automatically when the payment is confirmed.",
+        paymentOpening: "Opening Wise payment...",
+        paymentReady: "Payment opened. Use reference {reference} so your credits are added automatically.",
+        manualProRequested: "Payment started. Use reference {reference} so your credits are added automatically.",
         historyTitle: "History",
         historySubtitle: "Your latest generated listings.",
         refresh: "Refresh",
@@ -2262,18 +2266,23 @@
       const limit = state.user.limit;
       const isPro = state.user.plan === "pro";
       const generations = usage.generations || 0;
+      const creditsBalance = Number(state.user.creditsBalance || 0);
       const percent = !limit ? 100 : Math.min(100, Math.round((generations / limit) * 100));
+      const usageText = limit ? `${generations} / ${limit}` : `${generations} / ${t("unlimited")}`;
+      const usageWithCredits = creditsBalance > 0
+        ? `${usageText} + ${creditsBalance} credits`
+        : usageText;
 
       accountName.textContent = state.user.name || "Vendedor";
       accountEmail.textContent = state.user.email;
       planLabel.textContent = isPro ? "Pro" : "Grátis";
-      usageLabel.textContent = limit ? `${generations} / ${limit}` : `${generations} / ilimitado`;
+      usageLabel.textContent = usageWithCredits;
       usageBar.style.width = `${percent}%`;
       accountStatus.textContent = !limit || generations < limit ? "Ativo" : "Limite atingido";
       upgradeButton.disabled = isPro;
       upgradeButton.textContent = isPro ? "Plano Pro ativo" : "Upgrade Pro";
       planLabel.textContent = isPro ? t("pro") : t("free");
-      usageLabel.textContent = limit ? `${generations} / ${limit}` : `${generations} / ${t("unlimited")}`;
+      usageLabel.textContent = usageWithCredits;
       accountStatus.textContent = !limit || generations < limit ? t("active") : t("limitReached");
       upgradeButton.textContent = isPro ? t("proActive") : t("upgrade");
     }
@@ -2348,20 +2357,44 @@
     function hasNoRemainingCredits() {
       const limit = state.user?.limit;
       const generations = state.user?.usage?.generations || 0;
-      return Boolean(limit && generations >= limit);
+      const creditsBalance = Number(state.user?.creditsBalance || 0);
+      return Boolean(limit && generations >= limit && creditsBalance <= 0);
     }
 
     function closePlans() {
       plansModal.classList.add("hidden");
     }
 
-    function requestManualPro() {
-      const accountEmail = state.user?.email || "";
-      const message = t("manualProRequested").replace("{email}", accountEmail);
+    async function requestWiseCredits(packageKey = "credits_10") {
+      const paymentWindow = window.open("", "_blank");
+      setStatus(generatorStatus, t("paymentOpening"), "");
 
-      trackAnalyticsEvent("checkout_attempt");
-      closePlans();
-      setStatus(generatorStatus, message, "success");
+      try {
+        const data = await apiFetch("/billing/wise/create-payment-link", {
+          method: "POST",
+          body: JSON.stringify({ packageKey }),
+        });
+
+        const reference = data.instructions?.reference || "";
+
+        if (data.paymentUrl && paymentWindow) {
+          paymentWindow.location.href = data.paymentUrl;
+        } else if (paymentWindow) {
+          paymentWindow.close();
+        }
+
+        closePlans();
+        setStatus(
+          generatorStatus,
+          t("paymentReady").replace("{reference}", reference),
+          "success",
+        );
+      } catch (error) {
+        if (paymentWindow) {
+          paymentWindow.close();
+        }
+        setStatus(generatorStatus, error.message, "error");
+      }
     }
 
     async function restoreSession() {
@@ -2439,9 +2472,12 @@
         closePlans();
       }
     });
-    startProCheckoutButton.addEventListener("click", requestManualPro);
+    startProCheckoutButton.addEventListener("click", () => requestWiseCredits("credits_30"));
+    const planPackageKeys = ["credits_10", "credits_30", "credits_60"];
     planCards.forEach((planCard) => {
-      planCard.addEventListener("click", requestManualPro);
+      planCard.addEventListener("click", () => {
+        requestWiseCredits(planPackageKeys[[...planCards].indexOf(planCard)] || "credits_10");
+      });
     });
     refreshHistoryButton.addEventListener("click", () => loadHistory(true));
 
