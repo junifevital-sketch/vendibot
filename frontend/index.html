@@ -407,6 +407,56 @@
       color: #202938;
     }
 
+    .listing-parts {
+      display: grid;
+      gap: 12px;
+    }
+
+    .listing-part {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfd;
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .listing-part-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .listing-part-header span {
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .listing-part p,
+    .listing-copy-text {
+      margin: 0;
+      color: #202938;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .listing-copy-text {
+      font-family: inherit;
+      background: transparent;
+      border: 0;
+      padding: 0;
+    }
+
+    .btn-small {
+      min-height: 36px;
+      padding: 0 12px;
+      font-size: 0.84rem;
+    }
+
     .result-actions {
       display: flex;
       align-items: center;
@@ -1334,6 +1384,31 @@
               <a id="vintedLink" class="btn btn-secondary vinted-link" href="https://www.vinted.com/" target="_blank" rel="noopener noreferrer">Go to Vinted ➡️</a>
             </div>
           </div>
+          <div id="listingParts" class="listing-parts hidden">
+            <article class="listing-part">
+              <div class="listing-part-header">
+                <span id="titlePartLabel">Title</span>
+                <button id="copyTitleButton" class="btn btn-secondary btn-small" type="button">Copy title</button>
+              </div>
+              <p id="listingTitleText"></p>
+            </article>
+
+            <article class="listing-part">
+              <div class="listing-part-header">
+                <span id="descriptionPartLabel">Description</span>
+                <button id="copyDescriptionButton" class="btn btn-secondary btn-small" type="button">Copy description</button>
+              </div>
+              <pre id="listingDescriptionText" class="listing-copy-text"></pre>
+            </article>
+
+            <article class="listing-part">
+              <div class="listing-part-header">
+                <span id="pricePartLabel">Suggested price</span>
+                <button id="copyPriceButton" class="btn btn-secondary btn-small" type="button">Copy price</button>
+              </div>
+              <p id="listingPriceText"></p>
+            </article>
+          </div>
           <pre id="resultOutput" class="result-output">Seu anúncio aparecerá aqui.</pre>
         </section>
       </section>
@@ -1462,6 +1537,7 @@
         status: "Status",
         active: "Ativo",
         limitReached: "Limite atingido",
+        usingPaidCredits: "Usando creditos pagos",
         newAd: "Novo anuncio",
         newAdHelp: "Use ate 12 imagens por geracao.",
         productPhotos: "Fotos do produto",
@@ -1478,6 +1554,13 @@
         result: "Resultado",
         resultHelp: "Texto final para revisar e publicar.",
         copy: "Copiar",
+        copyTitle: "Copiar titulo",
+        copyDescription: "Copiar descricao",
+        copyPrice: "Copiar preco",
+        titlePart: "Titulo",
+        descriptionPart: "Descricao para Vinted",
+        pricePart: "Preco sugerido",
+        priceFooterLabel: "Preco sugerido",
         emptyResult: "Seu anuncio aparecera aqui.",
         analyzing: "Analisando produto e preparando anuncio...",
         generated: "Anuncio gerado com sucesso.",
@@ -1578,6 +1661,7 @@
         status: "Status",
         active: "Active",
         limitReached: "Limit reached",
+        usingPaidCredits: "Using paid credits",
         newAd: "New listing",
         newAdHelp: "Use up to 12 images per generation.",
         productPhotos: "Product photos",
@@ -1594,6 +1678,13 @@
         result: "Result",
         resultHelp: "Final copy to review and publish.",
         copy: "Copy",
+        copyTitle: "Copy title",
+        copyDescription: "Copy description",
+        copyPrice: "Copy price",
+        titlePart: "Title",
+        descriptionPart: "Vinted description",
+        pricePart: "Suggested price",
+        priceFooterLabel: "Suggested price",
         emptyResult: "Your listing will appear here.",
         analyzing: "Analyzing product and preparing listing...",
         generated: "Listing generated successfully.",
@@ -1694,6 +1785,7 @@
         status: "Status",
         active: "Actief",
         limitReached: "Limiet bereikt",
+        usingPaidCredits: "Betaalde credits actief",
         newAd: "Nieuwe advertentie",
         newAdHelp: "Gebruik maximaal 12 afbeeldingen per generatie.",
         productPhotos: "Productfoto's",
@@ -1710,6 +1802,13 @@
         result: "Resultaat",
         resultHelp: "Definitieve tekst om te controleren en te publiceren.",
         copy: "Kopieren",
+        copyTitle: "Titel kopieren",
+        copyDescription: "Beschrijving kopieren",
+        copyPrice: "Prijs kopieren",
+        titlePart: "Titel",
+        descriptionPart: "Vinted-beschrijving",
+        pricePart: "Adviesprijs",
+        priceFooterLabel: "Adviesprijs",
         emptyResult: "Je advertentie verschijnt hier.",
         analyzing: "Product analyseren en advertentie voorbereiden...",
         generated: "Advertentie succesvol gegenereerd.",
@@ -1810,6 +1909,7 @@
         status: "Estado",
         active: "Activo",
         limitReached: "Limite alcanzado",
+        usingPaidCredits: "Usando creditos pagados",
         newAd: "Nuevo anuncio",
         newAdHelp: "Usa hasta 12 imagenes por generacion.",
         productPhotos: "Fotos del producto",
@@ -1826,6 +1926,13 @@
         result: "Resultado",
         resultHelp: "Texto final para revisar y publicar.",
         copy: "Copiar",
+        copyTitle: "Copiar titulo",
+        copyDescription: "Copiar descripcion",
+        copyPrice: "Copiar precio",
+        titlePart: "Titulo",
+        descriptionPart: "Descripcion para Vinted",
+        pricePart: "Precio sugerido",
+        priceFooterLabel: "Precio sugerido",
         emptyResult: "Tu anuncio aparecera aqui.",
         analyzing: "Analizando producto y preparando anuncio...",
         generated: "Anuncio generado con exito.",
@@ -1996,6 +2103,7 @@
       uiLanguage: getInitialUiLanguage(),
       user: null,
       result: "",
+      currentListing: null,
       listings: [],
       pendingPaymentOrderId: localStorage.getItem(PENDING_PAYMENT_ORDER_KEY) || "",
     };
@@ -2062,6 +2170,16 @@
     const copyButton = document.getElementById("copyButton");
     const vintedLink = document.getElementById("vintedLink");
     const resultTitle = document.getElementById("resultTitle");
+    const listingParts = document.getElementById("listingParts");
+    const titlePartLabel = document.getElementById("titlePartLabel");
+    const descriptionPartLabel = document.getElementById("descriptionPartLabel");
+    const pricePartLabel = document.getElementById("pricePartLabel");
+    const listingTitleText = document.getElementById("listingTitleText");
+    const listingDescriptionText = document.getElementById("listingDescriptionText");
+    const listingPriceText = document.getElementById("listingPriceText");
+    const copyTitleButton = document.getElementById("copyTitleButton");
+    const copyDescriptionButton = document.getElementById("copyDescriptionButton");
+    const copyPriceButton = document.getElementById("copyPriceButton");
     const resultOutput = document.getElementById("resultOutput");
     const generatorStatus = document.getElementById("generatorStatus");
     const historyTitle = document.getElementById("historyTitle");
@@ -2182,7 +2300,13 @@
       setText(clearButton, t("clear"));
       setText(resultTitle, t("result"));
       setText(".result-card .card-header p", t("resultHelp"));
-      setText(copyButton, t("copy"));
+      setText(copyButton, t("copyDescription"));
+      setText(titlePartLabel, t("titlePart"));
+      setText(descriptionPartLabel, t("descriptionPart"));
+      setText(pricePartLabel, t("pricePart"));
+      setText(copyTitleButton, t("copyTitle"));
+      setText(copyDescriptionButton, t("copyDescription"));
+      setText(copyPriceButton, t("copyPrice"));
       setText(vintedLink, t("vintedLink"));
       setText(historyTitle, t("historyTitle"));
       setText(historySubtitle, t("historySubtitle"));
@@ -2202,13 +2326,14 @@
       setText(paymentLinkButton, t("paymentLink"));
       setText(checkPaymentButton, t("checkPayment"));
 
-      if (!state.result) {
+      if (!state.result && !state.currentListing) {
         resultOutput.textContent = t("emptyResult");
       }
 
       updateAuthMode();
       renderAccount();
       renderHistory();
+      renderResult();
     }
 
     function setInterfaceLanguage(language) {
@@ -2376,8 +2501,184 @@
       upgradeButton.textContent = isPro ? "Plano Pro ativo" : "Upgrade Pro";
       planLabel.textContent = isPro ? t("pro") : t("free");
       usageLabel.textContent = usageWithCredits;
-      accountStatus.textContent = !limit || generations < limit ? t("active") : t("limitReached");
+      accountStatus.textContent = !limit || generations < limit
+        ? t("active")
+        : creditsBalance > 0
+          ? t("usingPaidCredits")
+          : t("limitReached");
       upgradeButton.textContent = isPro ? t("proActive") : t("upgrade");
+    }
+
+    function parseListingField(text, labels) {
+      const lines = String(text || "").split(/\r?\n/);
+
+      for (const line of lines) {
+        for (const label of labels) {
+          const prefix = `${label}:`;
+
+          if (line.toLowerCase().startsWith(prefix.toLowerCase())) {
+            return line.slice(prefix.length).trim();
+          }
+        }
+      }
+
+      return "";
+    }
+
+    function parseListingBlock(text, startLabels, stopLabels) {
+      const lines = String(text || "").split(/\r?\n/);
+      const startSet = new Set(startLabels.map((label) => label.toLowerCase()));
+      const stopSet = new Set(stopLabels.map((label) => label.toLowerCase()));
+      const output = [];
+      let isCollecting = false;
+
+      for (const line of lines) {
+        const labelMatch = line.trim().match(/^([^:]{2,80}):\s*(.*)$/);
+        const label = labelMatch ? labelMatch[1].trim().toLowerCase() : "";
+
+        if (label && startSet.has(label)) {
+          isCollecting = true;
+
+          if (labelMatch[2]) {
+            output.push(labelMatch[2].trim());
+          }
+
+          continue;
+        }
+
+        if (isCollecting && label && stopSet.has(label)) {
+          break;
+        }
+
+        if (isCollecting) {
+          output.push(line);
+        }
+      }
+
+      return output.join("\n").trim();
+    }
+
+    const titleLabels = ["Title", "Titulo", "Titel", "Titre", "Titolo"];
+    const priceLabels = [
+      "Suggested price",
+      "Preco sugerido",
+      "Adviesprijs",
+      "Precio sugerido",
+      "Prix suggere",
+      "Prezzo suggerito",
+    ];
+    const descriptionLabels = [
+      "Description",
+      "Descricao",
+      "Beschrijving",
+      "Descripcion",
+      "Descrizione",
+    ];
+    const highlightsLabels = [
+      "Highlights",
+      "Destaques",
+      "Points forts",
+      "Destacados",
+      "Punti forti",
+    ];
+    const hashtagsLabels = ["Hashtags"];
+
+    function normalizeListing(listing = {}, fallbackText = "") {
+      const result = listing.result || fallbackText || "";
+      const description = listing.description ||
+        parseListingBlock(result, descriptionLabels, [...highlightsLabels, ...hashtagsLabels]);
+      const highlights = Array.isArray(listing.highlights) && listing.highlights.length
+        ? listing.highlights
+        : parseListingBlock(result, highlightsLabels, hashtagsLabels)
+            .split(/\r?\n/)
+            .map((line) => line.trim().replace(/^[-*]\s*/, ""))
+            .filter(Boolean);
+      const hashtags = Array.isArray(listing.hashtags) && listing.hashtags.length
+        ? listing.hashtags
+        : parseListingBlock(result, hashtagsLabels, [])
+            .split(/\s+/)
+            .filter((item) => item.startsWith("#"));
+
+      return {
+        ...listing,
+        result,
+        title:
+          listing.title && listing.title !== "Listing"
+            ? listing.title
+            : parseListingField(result, titleLabels),
+        suggestedPrice:
+          listing.suggestedPrice || parseListingField(result, priceLabels),
+        description,
+        highlights,
+        hashtags,
+      };
+    }
+
+    function buildDescriptionCopy(listing) {
+      if (!listing) {
+        return state.result || "";
+      }
+
+      const parts = [];
+
+      if (listing.description) {
+        parts.push(listing.description);
+      }
+
+      if (listing.highlights?.length) {
+        parts.push(listing.highlights.map((item) => `- ${item}`).join("\n"));
+      }
+
+      if (listing.hashtags?.length) {
+        parts.push(listing.hashtags.join(" "));
+      }
+
+      if (listing.suggestedPrice) {
+        parts.push(`${t("priceFooterLabel")}: ${listing.suggestedPrice}`);
+      }
+
+      return parts.filter(Boolean).join("\n\n").trim() || listing.result || "";
+    }
+
+    function renderResult() {
+      const listing = state.currentListing;
+      const hasStructuredListing = Boolean(
+        listing?.title || listing?.description || listing?.suggestedPrice,
+      );
+
+      listingParts.classList.toggle("hidden", !hasStructuredListing);
+      resultOutput.classList.toggle("hidden", hasStructuredListing);
+
+      if (!hasStructuredListing) {
+        resultOutput.textContent = state.result || t("emptyResult");
+        copyButton.disabled = !state.result;
+        return;
+      }
+
+      const descriptionCopy = buildDescriptionCopy(listing);
+      listingTitleText.textContent = listing.title || "-";
+      listingDescriptionText.textContent = descriptionCopy || "-";
+      listingPriceText.textContent = listing.suggestedPrice || "-";
+      copyButton.disabled = !descriptionCopy;
+      copyTitleButton.disabled = !listing.title;
+      copyDescriptionButton.disabled = !descriptionCopy;
+      copyPriceButton.disabled = !listing.suggestedPrice;
+    }
+
+    function setCurrentListing(listing, fallbackText = "") {
+      state.currentListing = normalizeListing(listing || {}, fallbackText);
+      state.result = state.currentListing.result || fallbackText || "";
+      renderResult();
+    }
+
+    async function copyListingText(text) {
+      if (!text) {
+        return;
+      }
+
+      await navigator.clipboard.writeText(text);
+      trackAnalyticsEvent("copy_button_click");
+      setStatus(generatorStatus, t("copied"), "success");
     }
 
     function renderHistory() {
@@ -2412,9 +2713,7 @@
         button.type = "button";
         button.textContent = t("openHistory");
         button.addEventListener("click", () => {
-          state.result = listing.result || "";
-          resultOutput.textContent = state.result || t("emptyResult");
-          copyButton.disabled = !state.result;
+          setCurrentListing(listing, listing.result || "");
         });
 
         item.append(title, meta, button);
@@ -2649,6 +2948,9 @@
         return;
       }
 
+      state.currentListing = null;
+      listingParts.classList.add("hidden");
+      resultOutput.classList.remove("hidden");
       resultOutput.textContent = t("analyzing");
       copyButton.disabled = true;
       state.result = "";
@@ -2672,8 +2974,7 @@
         });
 
         state.result = data.result || "";
-        resultOutput.textContent = state.result || t("noResult");
-        copyButton.disabled = !state.result;
+        setCurrentListing(data.listing || {}, state.result);
 
         if (data.user) {
           state.user = data.user;
@@ -2690,7 +2991,10 @@
 
         setStatus(generatorStatus, t("generated"), "success");
       } catch (error) {
+        state.currentListing = null;
         resultOutput.textContent = t("emptyResult");
+        listingParts.classList.add("hidden");
+        resultOutput.classList.remove("hidden");
 
         if (error.status === 402) {
           openPlans();
@@ -2707,19 +3011,26 @@
       generatorForm.reset();
       previewGrid.innerHTML = "";
       state.result = "";
-      resultOutput.textContent = t("emptyResult");
+      state.currentListing = null;
+      renderResult();
       copyButton.disabled = true;
       setStatus(generatorStatus, "");
     });
 
     copyButton.addEventListener("click", async () => {
-      if (!state.result) {
-        return;
-      }
+      await copyListingText(buildDescriptionCopy(state.currentListing) || state.result);
+    });
 
-      await navigator.clipboard.writeText(state.result);
-      trackAnalyticsEvent("copy_button_click");
-      setStatus(generatorStatus, t("copied"), "success");
+    copyTitleButton.addEventListener("click", () => {
+      copyListingText(state.currentListing?.title || "");
+    });
+
+    copyDescriptionButton.addEventListener("click", () => {
+      copyListingText(buildDescriptionCopy(state.currentListing));
+    });
+
+    copyPriceButton.addEventListener("click", () => {
+      copyListingText(state.currentListing?.suggestedPrice || "");
     });
 
     vintedLink.addEventListener("click", () => {

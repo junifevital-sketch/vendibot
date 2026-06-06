@@ -732,11 +732,107 @@ function parseListingField(result, labels) {
   return "";
 }
 
+function normalizeListingLabel(value) {
+  return String(value || "")
+    .trim()
+    .replace(/:$/, "")
+    .toLowerCase();
+}
+
+function parseListingBlock(result, startLabels, stopLabels = []) {
+  const lines = String(result || "").split(/\r?\n/);
+  const startSet = new Set(startLabels.map(normalizeListingLabel));
+  const stopSet = new Set(stopLabels.map(normalizeListingLabel));
+  const output = [];
+  let isCollecting = false;
+
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    const labelMatch = trimmedLine.match(/^([^:]{2,80}):\s*(.*)$/);
+    const label = labelMatch ? normalizeListingLabel(labelMatch[1]) : "";
+
+    if (label && startSet.has(label)) {
+      isCollecting = true;
+
+      if (labelMatch[2]) {
+        output.push(labelMatch[2].trim());
+      }
+
+      continue;
+    }
+
+    if (isCollecting && label && stopSet.has(label)) {
+      break;
+    }
+
+    if (isCollecting) {
+      output.push(line);
+    }
+  }
+
+  return output.join("\n").trim();
+}
+
+function parseListingList(result, startLabels, stopLabels = []) {
+  return parseListingBlock(result, startLabels, stopLabels)
+    .split(/\r?\n/)
+    .map((line) => line.trim().replace(/^[-*]\s*/, ""))
+    .filter(Boolean);
+}
+
+const titleLabels = ["Title", "Titulo", "Titel", "Titre", "Titolo"];
+const priceLabels = [
+  "Suggested price",
+  "Preco sugerido",
+  "Adviesprijs",
+  "Precio sugerido",
+  "Prix suggere",
+  "Prezzo suggerito",
+];
+const descriptionLabels = [
+  "Description",
+  "Descricao",
+  "Beschrijving",
+  "Descripcion",
+  "Descrizione",
+];
+const highlightsLabels = [
+  "Highlights",
+  "Destaques",
+  "Points forts",
+  "Destacados",
+  "Punti forti",
+];
+const hashtagsLabels = ["Hashtags"];
+const allListingSectionLabels = [
+  ...titleLabels,
+  ...priceLabels,
+  ...descriptionLabels,
+  ...highlightsLabels,
+  ...hashtagsLabels,
+];
+
 function safeListing(listing) {
   return {
     id: listing.id,
     title: listing.title || "Listing",
     suggestedPrice: listing.suggestedPrice || "",
+    description:
+      listing.description ||
+      parseListingBlock(listing.result, descriptionLabels, [
+        ...highlightsLabels,
+        ...hashtagsLabels,
+      ]),
+    highlights:
+      listing.highlights?.length
+        ? listing.highlights
+        : parseListingList(listing.result, highlightsLabels, hashtagsLabels),
+    hashtags:
+      listing.hashtags?.length
+        ? listing.hashtags
+        : parseListingBlock(listing.result, hashtagsLabels, allListingSectionLabels)
+            .split(/\s+/)
+            .filter((item) => item.startsWith("#")),
     marketplace: listing.marketplace || "",
     language: listing.language || "",
     result: listing.result || "",
@@ -749,27 +845,25 @@ async function createListingRecord(user, listing) {
     id: crypto.randomUUID(),
     userId: user.id,
     title:
-      listing.title ||
-      parseListingField(listing.result, [
-        "Title",
-        "Titulo",
-        "Titel",
-        "Titre",
-        "Titolo",
-      ]),
+      listing.title || parseListingField(listing.result, titleLabels),
     suggestedPrice:
-      listing.suggestedPrice ||
-      parseListingField(listing.result, [
-        "Suggested price",
-        "Preco sugerido",
-        "Adviesprijs",
-        "Precio sugerido",
-        "Prix suggere",
-        "Prezzo suggerito",
+      listing.suggestedPrice || parseListingField(listing.result, priceLabels),
+    description:
+      listing.description ||
+      parseListingBlock(listing.result, descriptionLabels, [
+        ...highlightsLabels,
+        ...hashtagsLabels,
       ]),
-    description: listing.description || "",
-    highlights: listing.highlights || [],
-    hashtags: listing.hashtags || [],
+    highlights:
+      listing.highlights?.length
+        ? listing.highlights
+        : parseListingList(listing.result, highlightsLabels, hashtagsLabels),
+    hashtags:
+      listing.hashtags?.length
+        ? listing.hashtags
+        : parseListingBlock(listing.result, hashtagsLabels, allListingSectionLabels)
+            .split(/\s+/)
+            .filter((item) => item.startsWith("#")),
     marketplace: listing.marketplace || "",
     language: listing.language || "",
     sourceDescription: listing.sourceDescription || "",
@@ -2596,6 +2690,9 @@ Rules:
 - Do not invent details that are not visible or provided.
 - Use natural, modern, direct wording.
 - Highlight real benefits and the apparent condition of the product.
+- Keep the title, suggested price, description, highlights, and hashtags clearly separated.
+- Do not repeat the title or suggested price inside the Description section.
+- Make the Description section ready to paste into the marketplace description field.
 - Mandatory output language: ${languageSettings.name}.
 - Translate every section label and every sentence into ${languageSettings.name}, even if the seller description or marketplace name is in another language.
 - ${languageSettings.currency}
