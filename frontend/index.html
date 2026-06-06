@@ -443,6 +443,12 @@
       min-height: 180px;
     }
 
+    .result-output a {
+      color: var(--brand);
+      font-weight: 800;
+      text-decoration: underline;
+    }
+
     .listing-part p,
     .listing-copy-text {
       margin: 0;
@@ -2613,6 +2619,13 @@
       "Descripcion",
       "Descrizione",
     ];
+    const evidenceLabels = [
+      "Market evidence",
+      "Evidencia de mercado",
+      "Marktbewijs",
+      "Preuve de marche",
+      "Evidenza di mercato",
+    ];
     const highlightsLabels = [
       "Highlights",
       "Destaques",
@@ -2647,7 +2660,11 @@
     function normalizeListing(listing = {}, fallbackText = "") {
       const result = listing.result || fallbackText || "";
       const description = listing.description ||
-        parseListingBlock(result, descriptionLabels, [...highlightsLabels, ...hashtagsLabels]);
+        parseListingBlock(result, descriptionLabels, [
+          ...evidenceLabels,
+          ...highlightsLabels,
+          ...hashtagsLabels,
+        ]);
       const title = cleanListingField(listing.title);
       const suggestedPrice =
         cleanListingField(listing.suggestedPrice) ||
@@ -2711,6 +2728,23 @@
       return match ? match[1].replace(".", ",") : text;
     }
 
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function setLinkedText(element, value) {
+      const escaped = escapeHtml(value);
+      element.innerHTML = escaped.replace(
+        /(https?:\/\/[^\s<>()"]+)/g,
+        (url) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`,
+      );
+    }
+
     function renderResult() {
       const listing = state.currentListing;
       const hasStructuredListing = Boolean(
@@ -2723,13 +2757,13 @@
       resultOutput.classList.toggle("with-parts", hasStructuredListing);
 
       if (!hasStructuredListing) {
-        resultOutput.textContent = fullText || t("emptyResult");
+        setLinkedText(resultOutput, fullText || t("emptyResult"));
         copyButton.disabled = !fullText;
         return;
       }
 
       const descriptionCopy = buildDescriptionCopy(listing);
-      resultOutput.textContent = fullText || descriptionCopy || t("emptyResult");
+      setLinkedText(resultOutput, fullText || descriptionCopy || t("emptyResult"));
       listingTitleText.textContent = listing.title || t("titleNotEstimated");
       listingDescriptionText.textContent = descriptionCopy || "-";
       listingPriceText.textContent = listing.suggestedPrice || t("priceNotEstimated");

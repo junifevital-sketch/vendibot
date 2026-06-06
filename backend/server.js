@@ -829,6 +829,13 @@ const descriptionLabels = [
   "Descripcion",
   "Descrizione",
 ];
+const evidenceLabels = [
+  "Market evidence",
+  "Evidencia de mercado",
+  "Marktbewijs",
+  "Preuve de marche",
+  "Evidenza di mercato",
+];
 const highlightsLabels = [
   "Highlights",
   "Destaques",
@@ -840,6 +847,7 @@ const hashtagsLabels = ["Hashtags"];
 const allListingSectionLabels = [
   ...titleLabels,
   ...priceLabels,
+  ...evidenceLabels,
   ...descriptionLabels,
   ...highlightsLabels,
   ...hashtagsLabels,
@@ -849,6 +857,7 @@ function safeListing(listing) {
   const description =
     listing.description ||
     parseListingBlock(listing.result, descriptionLabels, [
+      ...evidenceLabels,
       ...highlightsLabels,
       ...hashtagsLabels,
     ]);
@@ -882,6 +891,7 @@ async function createListingRecord(user, listing) {
   const parsedDescription =
     listing.description ||
     parseListingBlock(listing.result, descriptionLabels, [
+      ...evidenceLabels,
       ...highlightsLabels,
       ...hashtagsLabels,
     ]);
@@ -2570,6 +2580,7 @@ const listingLanguageSettings = {
     currency: "Use EUR for Europe or R$ for Brazil when the context is clear.",
     format: `Titulo:
 Preco de mercado sugerido:
+Evidencia de mercado:
 Descricao:
 Destaques:
 - item
@@ -2584,6 +2595,7 @@ Hashtags:
     currency: "Use EUR for Europe, USD for the United States, or GBP for the United Kingdom when the context is clear.",
     format: `Title:
 Suggested resale price:
+Market evidence:
 Description:
 Highlights:
 - item
@@ -2598,6 +2610,7 @@ Hashtags:
     currency: "Use EUR unless the context clearly indicates another currency.",
     format: `Titre:
 Prix conseille d'occasion:
+Preuve de marche:
 Description:
 Points forts:
 - item
@@ -2612,6 +2625,7 @@ Hashtags:
     currency: "Use EUR unless the context clearly indicates another currency.",
     format: `Titel:
 Prijsadvies tweedehands:
+Marktbewijs:
 Beschrijving:
 Highlights:
 - item
@@ -2626,6 +2640,7 @@ Hashtags:
     currency: "Use EUR or a local currency when the context is clear.",
     format: `Titulo:
 Precio sugerido de segunda mano:
+Evidencia de mercado:
 Descripcion:
 Destacados:
 - item
@@ -2640,6 +2655,7 @@ Hashtags:
     currency: "Use EUR unless the context clearly indicates another currency.",
     format: `Titolo:
 Prezzo usato suggerito:
+Evidenza di mercato:
 Descrizione:
 Punti forti:
 - item
@@ -2670,6 +2686,12 @@ function isOpenAIWebSearchToolError(err) {
   return text.includes("web_search") || text.includes("tool");
 }
 
+function didCompleteWebSearch(response) {
+  return (response?.output || []).some(
+    (item) => item?.type === "web_search_call" && item?.status !== "failed",
+  );
+}
+
 async function createListingResponse(input) {
   const request = {
     model: OPENAI_MODEL,
@@ -2677,10 +2699,14 @@ async function createListingResponse(input) {
   };
 
   if (OPENAI_ENABLE_WEB_SEARCH) {
+    request.include = [
+      "web_search_call.results",
+      "web_search_call.action.sources",
+    ];
     request.tools = [
       {
         type: "web_search",
-        search_context_size: "low",
+        search_context_size: "medium",
         user_location: {
           type: "approximate",
           country: OPENAI_SEARCH_COUNTRY,
@@ -2691,16 +2717,31 @@ async function createListingResponse(input) {
   }
 
   try {
-    return await openai.responses.create(request);
+    const response = await openai.responses.create(request);
+
+    if (OPENAI_ENABLE_WEB_SEARCH && !didCompleteWebSearch(response)) {
+      const err = new Error(
+        "A pesquisa de mercado nao retornou fontes reais. Tente novamente com mais detalhes do produto.",
+      );
+      err.status = 502;
+      err.publicMessage =
+        "Nao consegui confirmar preco com fontes reais agora. Tente novamente com marca/modelo/tamanho mais claros.";
+      throw err;
+    }
+
+    return response;
   } catch (err) {
     if (OPENAI_ENABLE_WEB_SEARCH && isOpenAIWebSearchToolError(err)) {
       console.warn(
-        "OpenAI web search indisponivel; gerando anuncio sem busca web.",
+        "OpenAI web search indisponivel; cancelando geracao sem cobrar credito.",
       );
-      return openai.responses.create({
-        model: OPENAI_MODEL,
-        input,
-      });
+      const unavailable = new Error(
+        "Pesquisa de mercado indisponivel no momento.",
+      );
+      unavailable.status = 503;
+      unavailable.publicMessage =
+        "A pesquisa de mercado esta indisponivel agora. Tente novamente em alguns minutos.";
+      throw unavailable;
     }
 
     throw err;
@@ -2792,13 +2833,16 @@ Rules:
 - Keep the title, suggested price, description, highlights, and hashtags clearly separated.
 - Always include a short marketplace title after the title label.
 - Treat used-market pricing as a primary task, not an optional detail.
-- When web search is available, search for comparable used/resale prices using the visible brand/model/product type plus the requested marketplace/channel when possible.
+- You must use web search results as evidence for pricing. Do not price from imagination.
+- Search for real currently posted or recently indexed comparable items using the visible brand/model/product type plus the requested marketplace/channel when possible.
+- Prefer comparable used listings from Vinted, Marktplaats, OLX, Facebook Marketplace, eBay, Vestiaire Collective, Depop, local secondhand shops, or the brand's own retail page only as a secondary anchor.
 - Estimate price from comparable secondhand-market behavior for similar brand, category, model, size, age, visible condition, seasonality, and the requested marketplace/channel.
 - Prefer realistic resale prices for Vinted, Marktplaats, OLX, Facebook Marketplace, and local European marketplaces. Do not use new-retail pricing unless it helps anchor the used value.
 - The suggested price line must start with one exact asking price that is easy to paste into a marketplace price field, for example "EUR 18" or "€18".
 - After the exact asking price, add a short resale-market note when useful, for example "market range €15-22, quick sale €14". Keep it on the same line.
-- If web search does not find a clear comparable or information is limited, still estimate a conservative used-market range from the visible category and condition instead of leaving the price blank.
-- Do not claim a live search was performed unless web search results were actually available.
+- The Market evidence line must name at least one real comparable result you found, including source/site, listed price if visible, and a URL or source title.
+- If you cannot find the exact item, use the closest real comparable and say briefly why it is comparable.
+- If no reliable real comparable is found, write that clearly in the Market evidence line and do not pretend there was a source.
 - For luxury, collectible, electronics, or authenticity-sensitive products, be conservative and mention uncertainty briefly in the suggested price line.
 - Do not repeat the title or suggested price inside the Description section.
 - Make the Description section ready to paste into the marketplace description field.
@@ -2845,7 +2889,9 @@ Do not skip any of those labels.
       });
     } catch (err) {
       console.error(err);
-      res.status(500).json({ error: "Erro ao gerar o anuncio." });
+      res.status(err.status || 500).json({
+        error: err.publicMessage || "Erro ao gerar o anuncio.",
+      });
     } finally {
       for (const file of req.files || []) {
         fs.rm(file.path, { force: true }, () => {});
