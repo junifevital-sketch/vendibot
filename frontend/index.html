@@ -435,6 +435,14 @@
       text-transform: uppercase;
     }
 
+    .full-result-header {
+      margin: 14px 0 8px;
+    }
+
+    .result-output.with-parts {
+      min-height: 180px;
+    }
+
     .listing-part p,
     .listing-copy-text {
       margin: 0;
@@ -1409,6 +1417,9 @@
               <p id="listingPriceText"></p>
             </article>
           </div>
+          <div id="fullResultHeader" class="listing-part-header full-result-header hidden">
+            <span id="fullResultLabel">Texto completo</span>
+          </div>
           <pre id="resultOutput" class="result-output">Seu anúncio aparecerá aqui.</pre>
         </section>
       </section>
@@ -1554,6 +1565,7 @@
         result: "Resultado",
         resultHelp: "Texto final para revisar e publicar.",
         copy: "Copiar",
+        copyFull: "Copiar texto completo",
         copyTitle: "Copiar titulo",
         copyDescription: "Copiar descricao",
         copyPrice: "Copiar preco",
@@ -1561,6 +1573,8 @@
         descriptionPart: "Descricao para Vinted",
         pricePart: "Preco de mercado sugerido",
         priceFooterLabel: "Preco de mercado sugerido",
+        fullResultPart: "Texto completo",
+        titleNotEstimated: "Revisar titulo",
         priceNotEstimated: "Definir na Vinted",
         emptyResult: "Seu anuncio aparecera aqui.",
         analyzing: "Analisando produto e preparando anuncio...",
@@ -1679,6 +1693,7 @@
         result: "Result",
         resultHelp: "Final copy to review and publish.",
         copy: "Copy",
+        copyFull: "Copy full text",
         copyTitle: "Copy title",
         copyDescription: "Copy description",
         copyPrice: "Copy price",
@@ -1686,6 +1701,8 @@
         descriptionPart: "Vinted description",
         pricePart: "Suggested resale price",
         priceFooterLabel: "Suggested resale price",
+        fullResultPart: "Full generated text",
+        titleNotEstimated: "Review title",
         priceNotEstimated: "Set in Vinted",
         emptyResult: "Your listing will appear here.",
         analyzing: "Analyzing product and preparing listing...",
@@ -1804,6 +1821,7 @@
         result: "Resultaat",
         resultHelp: "Definitieve tekst om te controleren en te publiceren.",
         copy: "Kopieren",
+        copyFull: "Volledige tekst kopieren",
         copyTitle: "Titel kopieren",
         copyDescription: "Beschrijving kopieren",
         copyPrice: "Prijs kopieren",
@@ -1811,6 +1829,8 @@
         descriptionPart: "Vinted-beschrijving",
         pricePart: "Prijsadvies tweedehands",
         priceFooterLabel: "Prijsadvies tweedehands",
+        fullResultPart: "Volledige tekst",
+        titleNotEstimated: "Titel controleren",
         priceNotEstimated: "Instellen in Vinted",
         emptyResult: "Je advertentie verschijnt hier.",
         analyzing: "Product analyseren en advertentie voorbereiden...",
@@ -1929,6 +1949,7 @@
         result: "Resultado",
         resultHelp: "Texto final para revisar y publicar.",
         copy: "Copiar",
+        copyFull: "Copiar texto completo",
         copyTitle: "Copiar titulo",
         copyDescription: "Copiar descripcion",
         copyPrice: "Copiar precio",
@@ -1936,6 +1957,8 @@
         descriptionPart: "Descripcion para Vinted",
         pricePart: "Precio sugerido de segunda mano",
         priceFooterLabel: "Precio sugerido de segunda mano",
+        fullResultPart: "Texto completo",
+        titleNotEstimated: "Revisar titulo",
         priceNotEstimated: "Definir en Vinted",
         emptyResult: "Tu anuncio aparecera aqui.",
         analyzing: "Analizando producto y preparando anuncio...",
@@ -2184,6 +2207,8 @@
     const copyTitleButton = document.getElementById("copyTitleButton");
     const copyDescriptionButton = document.getElementById("copyDescriptionButton");
     const copyPriceButton = document.getElementById("copyPriceButton");
+    const fullResultHeader = document.getElementById("fullResultHeader");
+    const fullResultLabel = document.getElementById("fullResultLabel");
     const resultOutput = document.getElementById("resultOutput");
     const generatorStatus = document.getElementById("generatorStatus");
     const historyTitle = document.getElementById("historyTitle");
@@ -2304,10 +2329,11 @@
       setText(clearButton, t("clear"));
       setText(resultTitle, t("result"));
       setText(".result-card .card-header p", t("resultHelp"));
-      setText(copyButton, t("copyDescription"));
+      setText(copyButton, t("copyFull"));
       setText(titlePartLabel, t("titlePart"));
       setText(descriptionPartLabel, t("descriptionPart"));
       setText(pricePartLabel, t("pricePart"));
+      setText(fullResultLabel, t("fullResultPart"));
       setText(copyTitleButton, t("copyTitle"));
       setText(copyDescriptionButton, t("copyDescription"));
       setText(copyPriceButton, t("copyPrice"));
@@ -2618,25 +2644,6 @@
       return cleaned;
     }
 
-    function createFallbackTitle(...values) {
-      const source = values
-        .map(cleanListingField)
-        .find(Boolean);
-
-      if (!source) {
-        return "";
-      }
-
-      const title = source
-        .replace(/\s+/g, " ")
-        .split(" ")
-        .slice(0, 7)
-        .join(" ")
-        .replace(/[.,;:!?]+$/, "");
-
-      return title ? `${title[0].toUpperCase()}${title.slice(1)}` : "";
-    }
-
     function normalizeListing(listing = {}, fallbackText = "") {
       const result = listing.result || fallbackText || "";
       const description = listing.description ||
@@ -2663,8 +2670,7 @@
         title:
           title && title !== "Listing"
             ? title
-            : parseListingField(result, titleLabels) ||
-              createFallbackTitle(listing.sourceDescription, description, result),
+            : parseListingField(result, titleLabels),
         suggestedPrice,
         description,
         highlights,
@@ -2710,21 +2716,24 @@
       const hasStructuredListing = Boolean(
         listing?.title || listing?.description || listing?.suggestedPrice,
       );
+      const fullText = state.result || listing?.result || "";
 
       listingParts.classList.toggle("hidden", !hasStructuredListing);
-      resultOutput.classList.toggle("hidden", hasStructuredListing);
+      fullResultHeader.classList.toggle("hidden", !hasStructuredListing || !fullText);
+      resultOutput.classList.toggle("with-parts", hasStructuredListing);
 
       if (!hasStructuredListing) {
-        resultOutput.textContent = state.result || t("emptyResult");
-        copyButton.disabled = !state.result;
+        resultOutput.textContent = fullText || t("emptyResult");
+        copyButton.disabled = !fullText;
         return;
       }
 
       const descriptionCopy = buildDescriptionCopy(listing);
-      listingTitleText.textContent = listing.title || "-";
+      resultOutput.textContent = fullText || descriptionCopy || t("emptyResult");
+      listingTitleText.textContent = listing.title || t("titleNotEstimated");
       listingDescriptionText.textContent = descriptionCopy || "-";
       listingPriceText.textContent = listing.suggestedPrice || t("priceNotEstimated");
-      copyButton.disabled = !descriptionCopy;
+      copyButton.disabled = !fullText && !descriptionCopy;
       copyTitleButton.disabled = !listing.title;
       copyDescriptionButton.disabled = !descriptionCopy;
       copyPriceButton.disabled = !listing.suggestedPrice;
@@ -3083,7 +3092,7 @@
     });
 
     copyButton.addEventListener("click", async () => {
-      await copyListingText(buildDescriptionCopy(state.currentListing) || state.result);
+      await copyListingText(state.result || buildDescriptionCopy(state.currentListing));
     });
 
     copyTitleButton.addEventListener("click", () => {

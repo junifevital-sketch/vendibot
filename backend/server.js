@@ -90,6 +90,8 @@ const SESSION_SECRET =
   process.env.SESSION_SECRET || "vendibot-se-quiser-aprender-aja";
 const PASSWORD_RESET_CODE = process.env.PASSWORD_RESET_CODE || "";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
+const OPENAI_ENABLE_WEB_SEARCH = process.env.OPENAI_ENABLE_WEB_SEARCH !== "false";
+const OPENAI_SEARCH_COUNTRY = (process.env.OPENAI_SEARCH_COUNTRY || "NL").toUpperCase();
 const APP_URL = (process.env.APP_URL || `http://localhost:${PORT}`).replace(
   /\/$/,
   "",
@@ -802,25 +804,6 @@ function parseListingList(result, startLabels, stopLabels = []) {
     .filter(Boolean);
 }
 
-function createFallbackListingTitle(...values) {
-  const source = values
-    .map(cleanListingField)
-    .find(Boolean);
-
-  if (!source) {
-    return "";
-  }
-
-  const title = source
-    .replace(/\s+/g, " ")
-    .split(" ")
-    .slice(0, 7)
-    .join(" ")
-    .replace(/[.,;:!?]+$/, "");
-
-  return title ? `${title[0].toUpperCase()}${title.slice(1)}` : "";
-}
-
 const titleLabels = ["Title", "Titulo", "Titel", "Titre", "Titolo"];
 const priceLabels = [
   "Suggested resale price",
@@ -874,14 +857,7 @@ function safeListing(listing) {
 
   return {
     id: listing.id,
-    title:
-      title ||
-      createFallbackListingTitle(
-        listing.sourceDescription,
-        description,
-        listing.result,
-      ) ||
-      "Listing",
+    title: title || parseListingField(listing.result, titleLabels),
     suggestedPrice,
     description,
     highlights:
@@ -911,12 +887,7 @@ async function createListingRecord(user, listing) {
     ]);
   const title =
     cleanListingField(listing.title) ||
-    parseListingField(listing.result, titleLabels) ||
-    createFallbackListingTitle(
-      listing.sourceDescription,
-      parsedDescription,
-      listing.result,
-    );
+    parseListingField(listing.result, titleLabels);
   const suggestedPrice =
     cleanListingField(listing.suggestedPrice) ||
     parseListingField(listing.result, priceLabels);
@@ -2685,6 +2656,57 @@ function getListingLanguageSettings(language) {
   return listingLanguageSettings[code] || listingLanguageSettings.pt;
 }
 
+function isOpenAIWebSearchToolError(err) {
+  const text = [
+    err?.message,
+    err?.error?.message,
+    err?.response?.data,
+    err?.status,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return text.includes("web_search") || text.includes("tool");
+}
+
+async function createListingResponse(input) {
+  const request = {
+    model: OPENAI_MODEL,
+    input,
+  };
+
+  if (OPENAI_ENABLE_WEB_SEARCH) {
+    request.tools = [
+      {
+        type: "web_search",
+        search_context_size: "low",
+        user_location: {
+          type: "approximate",
+          country: OPENAI_SEARCH_COUNTRY,
+        },
+      },
+    ];
+    request.tool_choice = "required";
+  }
+
+  try {
+    return await openai.responses.create(request);
+  } catch (err) {
+    if (OPENAI_ENABLE_WEB_SEARCH && isOpenAIWebSearchToolError(err)) {
+      console.warn(
+        "OpenAI web search indisponivel; gerando anuncio sem busca web.",
+      );
+      return openai.responses.create({
+        model: OPENAI_MODEL,
+        input,
+      });
+    }
+
+    throw err;
+  }
+}
+
 app.post(
   "/generate",
   requireAuth,
@@ -2760,17 +2782,23 @@ Rules:
 - Return only the final listing.
 - Do not chat with the user.
 - Do not say "sure", "here it is", or any assistant-like intro.
-- Do not invent details that are not visible or provided.
+- Inspect uploaded images carefully for visible brand names, logos, labels, tags, model names, size labels, material tags, condition, and distinctive design details.
+- Use the seller description as context only. Do not copy the seller description as the title.
+- Rewrite the marketplace title from the identified product type, visible brand/model when confident, condition, size, color, and strongest selling detail.
+- If the brand/model is visible in the image, use it in the title and price research. If it is uncertain, do not make a brand claim.
+- Do not invent details that are not visible, provided, or found in web search results.
 - Use natural, modern, direct wording.
 - Highlight real benefits and the apparent condition of the product.
 - Keep the title, suggested price, description, highlights, and hashtags clearly separated.
 - Always include a short marketplace title after the title label.
 - Treat used-market pricing as a primary task, not an optional detail.
+- When web search is available, search for comparable used/resale prices using the visible brand/model/product type plus the requested marketplace/channel when possible.
 - Estimate price from comparable secondhand-market behavior for similar brand, category, model, size, age, visible condition, seasonality, and the requested marketplace/channel.
 - Prefer realistic resale prices for Vinted, Marktplaats, OLX, Facebook Marketplace, and local European marketplaces. Do not use new-retail pricing unless it helps anchor the used value.
 - The suggested price line must start with one exact asking price that is easy to paste into a marketplace price field, for example "EUR 18" or "€18".
 - After the exact asking price, add a short resale-market note when useful, for example "market range €15-22, quick sale €14". Keep it on the same line.
-- If information is limited, still estimate a conservative used-market range from the visible category and condition instead of leaving the price blank.
+- If web search does not find a clear comparable or information is limited, still estimate a conservative used-market range from the visible category and condition instead of leaving the price blank.
+- Do not claim a live search was performed unless web search results were actually available.
 - For luxury, collectible, electronics, or authenticity-sensitive products, be conservative and mention uncertainty briefly in the suggested price line.
 - Do not repeat the title or suggested price inside the Description section.
 - Make the Description section ready to paste into the marketplace description field.
@@ -2786,15 +2814,12 @@ Do not skip any of those labels.
 `,
       });
 
-      const response = await openai.responses.create({
-        model: OPENAI_MODEL,
-        input: [
-          {
-            role: "user",
-            content,
-          },
-        ],
-      });
+      const response = await createListingResponse([
+        {
+          role: "user",
+          content,
+        },
+      ]);
 
       if (hasFreeAllowance) {
         usage.generations += 1;
