@@ -111,6 +111,12 @@ const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "";
 const WISE_API_TOKEN = process.env.WISE_API_TOKEN || "";
 const WISE_PROFILE_ID = process.env.WISE_PROFILE_ID || "";
 const WISE_PAYMENT_LINK_URL = (process.env.WISE_PAYMENT_LINK_URL || "").trim();
+const WISE_ACCOUNT_HOLDER = process.env.WISE_ACCOUNT_HOLDER || "";
+const WISE_IBAN = process.env.WISE_IBAN || "";
+const WISE_BIC = process.env.WISE_BIC || "";
+const WISE_PAYMENT_NOTE =
+  process.env.WISE_PAYMENT_NOTE ||
+  "Use the reference exactly as shown so credits can be added automatically.";
 const WISE_ENVIRONMENT = (process.env.WISE_ENVIRONMENT || "production").toLowerCase();
 const WISE_API_BASE_URL =
   process.env.WISE_API_BASE_URL ||
@@ -156,9 +162,9 @@ if (!PASSWORD_RESET_CODE) {
   console.warn("Aviso: defina PASSWORD_RESET_CODE para recuperar senhas.");
 }
 
-if (!WISE_PAYMENT_LINK_URL) {
+if (!WISE_PAYMENT_LINK_URL && (!WISE_ACCOUNT_HOLDER || !WISE_IBAN)) {
   console.warn(
-    "Aviso: defina WISE_PAYMENT_LINK_URL para abrir o link de pagamento da Wise.",
+    "Aviso: defina WISE_ACCOUNT_HOLDER e WISE_IBAN para mostrar instrucoes de pagamento.",
   );
 }
 
@@ -1354,7 +1360,11 @@ app.get("/health", async (_req, res, next) => {
       ok: true,
       database: pool ? "postgres" : "json",
       payments: Boolean(stripe && STRIPE_PRICE_ID),
-      wisePayments: Boolean(WISE_API_TOKEN && WISE_PROFILE_ID && WISE_PAYMENT_LINK_URL),
+      wisePayments: Boolean(
+        WISE_API_TOKEN &&
+          WISE_PROFILE_ID &&
+          (WISE_PAYMENT_LINK_URL || (WISE_ACCOUNT_HOLDER && WISE_IBAN)),
+      ),
     });
   } catch (err) {
     next(err);
@@ -1519,10 +1529,10 @@ app.post("/billing/wise/create-payment-link", requireAuth, async (req, res, next
       return;
     }
 
-    if (!WISE_PAYMENT_LINK_URL) {
+    if (!WISE_PAYMENT_LINK_URL && (!WISE_ACCOUNT_HOLDER || !WISE_IBAN)) {
       res.status(500).json({
         error:
-          "Configure WISE_PAYMENT_LINK_URL com o link de pagamento da Wise.",
+          "Configure WISE_ACCOUNT_HOLDER e WISE_IBAN no backend.",
       });
       return;
     }
@@ -1545,6 +1555,10 @@ app.post("/billing/wise/create-payment-link", requireAuth, async (req, res, next
         currency: order.currency,
         reference: order.reference,
         credits: order.credits,
+        accountHolder: WISE_ACCOUNT_HOLDER,
+        iban: WISE_IBAN,
+        bic: WISE_BIC,
+        note: WISE_PAYMENT_NOTE,
       },
     });
   } catch (err) {

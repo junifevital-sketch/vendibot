@@ -533,6 +533,46 @@
       line-height: 1.35;
     }
 
+    .payment-instructions {
+      margin-top: 16px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfd;
+      display: grid;
+      gap: 12px;
+    }
+
+    .payment-instructions h4,
+    .payment-instructions p {
+      margin: 0;
+    }
+
+    .payment-details {
+      display: grid;
+      gap: 8px;
+    }
+
+    .payment-detail {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: var(--radius);
+      background: var(--surface-soft);
+      border: 1px solid var(--line);
+    }
+
+    .payment-detail span:first-child {
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .payment-detail strong {
+      text-align: right;
+      word-break: break-word;
+    }
+
     .auth-hero-copy {
       position: relative;
       z-index: 2;
@@ -1338,6 +1378,37 @@
       <div class="actions">
         <button id="startProCheckoutButton" class="btn btn-primary" type="button">Unlock My Listings</button>
       </div>
+      <section id="paymentInstructions" class="payment-instructions hidden" aria-live="polite">
+        <div>
+          <h4 id="paymentInstructionsTitle">Payment details</h4>
+          <p id="paymentInstructionsSubtitle" class="plan-note">Send the exact amount and include the reference.</p>
+        </div>
+        <div class="payment-details">
+          <div class="payment-detail">
+            <span id="paymentAmountLabel">Amount</span>
+            <strong id="paymentAmountValue">-</strong>
+          </div>
+          <div class="payment-detail">
+            <span id="paymentReferenceLabel">Reference</span>
+            <strong id="paymentReferenceValue">-</strong>
+          </div>
+          <div class="payment-detail">
+            <span id="paymentHolderLabel">Account holder</span>
+            <strong id="paymentHolderValue">-</strong>
+          </div>
+          <div class="payment-detail">
+            <span id="paymentIbanLabel">IBAN</span>
+            <strong id="paymentIbanValue">-</strong>
+          </div>
+          <div id="paymentBicRow" class="payment-detail hidden">
+            <span id="paymentBicLabel">BIC</span>
+            <strong id="paymentBicValue">-</strong>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="copyPaymentReferenceButton" class="btn btn-secondary" type="button">Copy reference</button>
+        </div>
+      </section>
       <p id="plansFootnote" class="plan-note">Manual payment for now. Online checkout will be added when the Stripe account is ready.</p>
     </section>
   </div>
@@ -1449,7 +1520,16 @@
         startPro: "Comprar creditos",
         plansFootnote: "Pagamento via Wise. Os creditos entram automaticamente quando o pagamento for confirmado.",
         paymentOpening: "Abrindo pagamento Wise...",
-        paymentReady: "Pagamento aberto. Use a referencia {reference} para liberar seus creditos automaticamente.",
+        paymentReady: "Dados de pagamento gerados. Use a referencia {reference} para liberar seus creditos automaticamente.",
+        paymentDetailsTitle: "Dados para pagamento",
+        paymentDetailsSubtitle: "Transfira o valor exato e coloque a referencia no pagamento.",
+        paymentAmount: "Valor",
+        paymentReference: "Referencia",
+        paymentHolder: "Titular",
+        paymentIban: "IBAN",
+        paymentBic: "BIC",
+        copyReference: "Copiar referencia",
+        referenceCopied: "Referencia copiada.",
         manualProRequested: "Pagamento iniciado. Use a referencia {reference} para liberar seus creditos automaticamente.",
         historyTitle: "Historico",
         historySubtitle: "Seus ultimos anuncios gerados.",
@@ -1558,7 +1638,16 @@
         startPro: "Buy credits",
         plansFootnote: "Payment via Wise. Credits are added automatically when the payment is confirmed.",
         paymentOpening: "Opening Wise payment...",
-        paymentReady: "Payment opened. Use reference {reference} so your credits are added automatically.",
+        paymentReady: "Payment details created. Use reference {reference} so your credits are added automatically.",
+        paymentDetailsTitle: "Payment details",
+        paymentDetailsSubtitle: "Send the exact amount and include the reference in the payment.",
+        paymentAmount: "Amount",
+        paymentReference: "Reference",
+        paymentHolder: "Account holder",
+        paymentIban: "IBAN",
+        paymentBic: "BIC",
+        copyReference: "Copy reference",
+        referenceCopied: "Reference copied.",
         manualProRequested: "Payment started. Use reference {reference} so your credits are added automatically.",
         historyTitle: "History",
         historySubtitle: "Your latest generated listings.",
@@ -1997,6 +2086,21 @@
     const startProCheckoutButton = document.getElementById("startProCheckoutButton");
     const plansFootnote = document.getElementById("plansFootnote");
     const planCards = document.querySelectorAll(".plan-card");
+    const paymentInstructions = document.getElementById("paymentInstructions");
+    const paymentInstructionsTitle = document.getElementById("paymentInstructionsTitle");
+    const paymentInstructionsSubtitle = document.getElementById("paymentInstructionsSubtitle");
+    const paymentAmountLabel = document.getElementById("paymentAmountLabel");
+    const paymentAmountValue = document.getElementById("paymentAmountValue");
+    const paymentReferenceLabel = document.getElementById("paymentReferenceLabel");
+    const paymentReferenceValue = document.getElementById("paymentReferenceValue");
+    const paymentHolderLabel = document.getElementById("paymentHolderLabel");
+    const paymentHolderValue = document.getElementById("paymentHolderValue");
+    const paymentIbanLabel = document.getElementById("paymentIbanLabel");
+    const paymentIbanValue = document.getElementById("paymentIbanValue");
+    const paymentBicRow = document.getElementById("paymentBicRow");
+    const paymentBicLabel = document.getElementById("paymentBicLabel");
+    const paymentBicValue = document.getElementById("paymentBicValue");
+    const copyPaymentReferenceButton = document.getElementById("copyPaymentReferenceButton");
 
     function getInitialUiLanguage() {
       const savedLanguage = localStorage.getItem(UI_LANGUAGE_KEY);
@@ -2108,6 +2212,14 @@
       setText(proPlanNote, t("proPlanNote"));
       setText(startProCheckoutButton, t("startPro"));
       setText(plansFootnote, t("plansFootnote"));
+      setText(paymentInstructionsTitle, t("paymentDetailsTitle"));
+      setText(paymentInstructionsSubtitle, t("paymentDetailsSubtitle"));
+      setText(paymentAmountLabel, t("paymentAmount"));
+      setText(paymentReferenceLabel, t("paymentReference"));
+      setText(paymentHolderLabel, t("paymentHolder"));
+      setText(paymentIbanLabel, t("paymentIban"));
+      setText(paymentBicLabel, t("paymentBic"));
+      setText(copyPaymentReferenceButton, t("copyReference"));
 
       if (!state.result) {
         resultOutput.textContent = t("emptyResult");
@@ -2351,6 +2463,7 @@
 
     function openPlans() {
       plansModal.classList.remove("hidden");
+      paymentInstructions.classList.add("hidden");
       trackAnalyticsEvent("paywall_view");
     }
 
@@ -2366,7 +2479,6 @@
     }
 
     async function requestWiseCredits(packageKey = "credits_10") {
-      const paymentWindow = window.open("", "_blank");
       setStatus(generatorStatus, t("paymentOpening"), "");
 
       try {
@@ -2376,23 +2488,25 @@
         });
 
         const reference = data.instructions?.reference || "";
+        const instructions = data.instructions || {};
+        const amount = instructions.amount
+          ? `${instructions.currency || "EUR"} ${instructions.amount}`
+          : "";
 
-        if (data.paymentUrl && paymentWindow) {
-          paymentWindow.location.href = data.paymentUrl;
-        } else if (paymentWindow) {
-          paymentWindow.close();
-        }
+        paymentAmountValue.textContent = amount || "-";
+        paymentReferenceValue.textContent = reference || "-";
+        paymentHolderValue.textContent = instructions.accountHolder || "-";
+        paymentIbanValue.textContent = instructions.iban || "-";
+        paymentBicValue.textContent = instructions.bic || "-";
+        paymentBicRow.classList.toggle("hidden", !instructions.bic);
+        paymentInstructions.classList.remove("hidden");
 
-        closePlans();
         setStatus(
           generatorStatus,
           t("paymentReady").replace("{reference}", reference),
           "success",
         );
       } catch (error) {
-        if (paymentWindow) {
-          paymentWindow.close();
-        }
         setStatus(generatorStatus, error.message, "error");
       }
     }
@@ -2478,6 +2592,16 @@
       planCard.addEventListener("click", () => {
         requestWiseCredits(planPackageKeys[[...planCards].indexOf(planCard)] || "credits_10");
       });
+    });
+    copyPaymentReferenceButton.addEventListener("click", async () => {
+      const reference = paymentReferenceValue.textContent.trim();
+
+      if (!reference || reference === "-") {
+        return;
+      }
+
+      await navigator.clipboard.writeText(reference);
+      setStatus(generatorStatus, t("referenceCopied"), "success");
     });
     refreshHistoryButton.addEventListener("click", () => loadHistory(true));
 
