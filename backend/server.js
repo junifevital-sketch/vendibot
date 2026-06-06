@@ -724,7 +724,7 @@ function parseListingField(result, labels) {
       const prefix = `${label}:`;
 
       if (line.toLowerCase().startsWith(prefix.toLowerCase())) {
-        return line.slice(prefix.length).trim();
+        return cleanListingField(line.slice(prefix.length));
       }
     }
   }
@@ -737,6 +737,28 @@ function normalizeListingLabel(value) {
     .trim()
     .replace(/:$/, "")
     .toLowerCase();
+}
+
+function cleanListingField(value) {
+  const cleaned = String(value || "").trim();
+  const normalized = cleaned.toLowerCase();
+  const emptyValues = new Set([
+    "-",
+    "--",
+    "n/a",
+    "na",
+    "n.d.",
+    "n.d",
+    "none",
+    "null",
+    "undefined",
+  ]);
+
+  if (!cleaned || emptyValues.has(normalized) || /^[-–—]+$/.test(cleaned)) {
+    return "";
+  }
+
+  return cleaned;
 }
 
 function parseListingBlock(result, startLabels, stopLabels = []) {
@@ -780,6 +802,25 @@ function parseListingList(result, startLabels, stopLabels = []) {
     .filter(Boolean);
 }
 
+function createFallbackListingTitle(...values) {
+  const source = values
+    .map(cleanListingField)
+    .find(Boolean);
+
+  if (!source) {
+    return "";
+  }
+
+  const title = source
+    .replace(/\s+/g, " ")
+    .split(" ")
+    .slice(0, 7)
+    .join(" ")
+    .replace(/[.,;:!?]+$/, "");
+
+  return title ? `${title[0].toUpperCase()}${title.slice(1)}` : "";
+}
+
 const titleLabels = ["Title", "Titulo", "Titel", "Titre", "Titolo"];
 const priceLabels = [
   "Suggested price",
@@ -813,16 +854,27 @@ const allListingSectionLabels = [
 ];
 
 function safeListing(listing) {
+  const description =
+    listing.description ||
+    parseListingBlock(listing.result, descriptionLabels, [
+      ...highlightsLabels,
+      ...hashtagsLabels,
+    ]);
+  const title = cleanListingField(listing.title);
+  const suggestedPrice = cleanListingField(listing.suggestedPrice);
+
   return {
     id: listing.id,
-    title: listing.title || "Listing",
-    suggestedPrice: listing.suggestedPrice || "",
-    description:
-      listing.description ||
-      parseListingBlock(listing.result, descriptionLabels, [
-        ...highlightsLabels,
-        ...hashtagsLabels,
-      ]),
+    title:
+      title ||
+      createFallbackListingTitle(
+        listing.sourceDescription,
+        description,
+        listing.result,
+      ) ||
+      "Listing",
+    suggestedPrice,
+    description,
     highlights:
       listing.highlights?.length
         ? listing.highlights
@@ -835,25 +887,37 @@ function safeListing(listing) {
             .filter((item) => item.startsWith("#")),
     marketplace: listing.marketplace || "",
     language: listing.language || "",
+    sourceDescription: listing.sourceDescription || "",
     result: listing.result || "",
     createdAt: listing.createdAt,
   };
 }
 
 async function createListingRecord(user, listing) {
+  const parsedDescription =
+    listing.description ||
+    parseListingBlock(listing.result, descriptionLabels, [
+      ...highlightsLabels,
+      ...hashtagsLabels,
+    ]);
+  const title =
+    cleanListingField(listing.title) ||
+    parseListingField(listing.result, titleLabels) ||
+    createFallbackListingTitle(
+      listing.sourceDescription,
+      parsedDescription,
+      listing.result,
+    );
+  const suggestedPrice =
+    cleanListingField(listing.suggestedPrice) ||
+    parseListingField(listing.result, priceLabels);
+
   const record = {
     id: crypto.randomUUID(),
     userId: user.id,
-    title:
-      listing.title || parseListingField(listing.result, titleLabels),
-    suggestedPrice:
-      listing.suggestedPrice || parseListingField(listing.result, priceLabels),
-    description:
-      listing.description ||
-      parseListingBlock(listing.result, descriptionLabels, [
-        ...highlightsLabels,
-        ...hashtagsLabels,
-      ]),
+    title,
+    suggestedPrice,
+    description: parsedDescription,
     highlights:
       listing.highlights?.length
         ? listing.highlights
@@ -2646,7 +2710,7 @@ app.post(
       if (!hasFreeAllowance && !hasPaidCredits) {
         res.status(402).json({
           error:
-            "Limite mensal atingido. Faca upgrade ou compre creditos para continuar.",
+            "Limite mensal atingido. Compre creditos para continuar.",
         });
         return;
       }
@@ -2691,6 +2755,8 @@ Rules:
 - Use natural, modern, direct wording.
 - Highlight real benefits and the apparent condition of the product.
 - Keep the title, suggested price, description, highlights, and hashtags clearly separated.
+- Always include a short marketplace title after the title label.
+- Always include a suggested price. If exact pricing is uncertain, provide a realistic EUR price range instead of leaving it blank.
 - Do not repeat the title or suggested price inside the Description section.
 - Make the Description section ready to paste into the marketplace description field.
 - Mandatory output language: ${languageSettings.name}.
@@ -2700,6 +2766,8 @@ Rules:
 Mandatory format:
 
 ${languageSettings.format}
+
+Do not skip any of those labels.
 `,
       });
 

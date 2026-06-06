@@ -1204,7 +1204,7 @@
         <h1>Anúncios melhores em poucos segundos.</h1>
         <p>Organize fotos, gere textos de venda e acompanhe o uso mensal com uma conta própria para cada vendedor.</p>
       </div>
-      <p class="side-note">Plano grátis com limite mensal. Estrutura pronta para upgrade pago.</p>
+      <p class="side-note">Plano gratis com limite mensal e pacotes de creditos avulsos.</p>
     </section>
 
     <main class="auth-panel">
@@ -1292,7 +1292,7 @@
             <option value="nl">🇳🇱 Nederlands</option>
             <option value="it">🇮🇹 Italiano</option>
           </select>
-          <button id="upgradeButton" class="btn btn-secondary" type="button">Upgrade Pro</button>
+          <button id="upgradeButton" class="btn btn-secondary" type="button">Buy credits</button>
         </div>
       </header>
 
@@ -1526,7 +1526,7 @@
         logout: "Sair",
         topbarTitle: "Painel de criacao",
         topbarSubtitle: "Faca upload das fotos, descreva o produto e gere um anuncio pronto para publicar.",
-        upgrade: "Upgrade Pro",
+        upgrade: "Comprar creditos",
         proActive: "Plano Pro ativo",
         opening: "Abrindo...",
         plan: "Plano",
@@ -1561,6 +1561,7 @@
         descriptionPart: "Descricao para Vinted",
         pricePart: "Preco sugerido",
         priceFooterLabel: "Preco sugerido",
+        priceNotEstimated: "Definir na Vinted",
         emptyResult: "Seu anuncio aparecera aqui.",
         analyzing: "Analisando produto e preparando anuncio...",
         generated: "Anuncio gerado com sucesso.",
@@ -1650,7 +1651,7 @@
         logout: "Log out",
         topbarTitle: "Creation dashboard",
         topbarSubtitle: "Upload photos, describe the product, and generate a ready-to-publish listing.",
-        upgrade: "Upgrade Pro",
+        upgrade: "Buy credits",
         proActive: "Pro plan active",
         opening: "Opening...",
         plan: "Plan",
@@ -1685,6 +1686,7 @@
         descriptionPart: "Vinted description",
         pricePart: "Suggested price",
         priceFooterLabel: "Suggested price",
+        priceNotEstimated: "Set in Vinted",
         emptyResult: "Your listing will appear here.",
         analyzing: "Analyzing product and preparing listing...",
         generated: "Listing generated successfully.",
@@ -1774,7 +1776,7 @@
         logout: "Uitloggen",
         topbarTitle: "Creatiedashboard",
         topbarSubtitle: "Upload foto's, beschrijf het product en genereer een advertentie die klaar is om te publiceren.",
-        upgrade: "Upgrade Pro",
+        upgrade: "Credits kopen",
         proActive: "Pro-plan actief",
         opening: "Openen...",
         plan: "Plan",
@@ -1809,6 +1811,7 @@
         descriptionPart: "Vinted-beschrijving",
         pricePart: "Adviesprijs",
         priceFooterLabel: "Adviesprijs",
+        priceNotEstimated: "Instellen in Vinted",
         emptyResult: "Je advertentie verschijnt hier.",
         analyzing: "Product analyseren en advertentie voorbereiden...",
         generated: "Advertentie succesvol gegenereerd.",
@@ -1898,7 +1901,7 @@
         logout: "Salir",
         topbarTitle: "Panel de creacion",
         topbarSubtitle: "Sube fotos, describe el producto y genera un anuncio listo para publicar.",
-        upgrade: "Upgrade Pro",
+        upgrade: "Comprar creditos",
         proActive: "Plan Pro activo",
         opening: "Abriendo...",
         plan: "Plan",
@@ -1933,6 +1936,7 @@
         descriptionPart: "Descripcion para Vinted",
         pricePart: "Precio sugerido",
         priceFooterLabel: "Precio sugerido",
+        priceNotEstimated: "Definir en Vinted",
         emptyResult: "Tu anuncio aparecera aqui.",
         analyzing: "Analizando producto y preparando anuncio...",
         generated: "Anuncio generado con exito.",
@@ -2498,7 +2502,7 @@
       usageBar.style.width = `${percent}%`;
       accountStatus.textContent = !limit || generations < limit ? "Ativo" : "Limite atingido";
       upgradeButton.disabled = isPro;
-      upgradeButton.textContent = isPro ? "Plano Pro ativo" : "Upgrade Pro";
+      upgradeButton.textContent = isPro ? t("proActive") : t("upgrade");
       planLabel.textContent = isPro ? t("pro") : t("free");
       usageLabel.textContent = usageWithCredits;
       accountStatus.textContent = !limit || generations < limit
@@ -2517,7 +2521,7 @@
           const prefix = `${label}:`;
 
           if (line.toLowerCase().startsWith(prefix.toLowerCase())) {
-            return line.slice(prefix.length).trim();
+            return cleanListingField(line.slice(prefix.length));
           }
         }
       }
@@ -2583,10 +2587,55 @@
     ];
     const hashtagsLabels = ["Hashtags"];
 
+    function cleanListingField(value) {
+      const cleaned = String(value || "").trim();
+      const normalized = cleaned.toLowerCase();
+      const emptyValues = new Set([
+        "-",
+        "--",
+        "n/a",
+        "na",
+        "n.d.",
+        "n.d",
+        "none",
+        "null",
+        "undefined",
+      ]);
+
+      if (!cleaned || emptyValues.has(normalized) || /^[-–—]+$/.test(cleaned)) {
+        return "";
+      }
+
+      return cleaned;
+    }
+
+    function createFallbackTitle(...values) {
+      const source = values
+        .map(cleanListingField)
+        .find(Boolean);
+
+      if (!source) {
+        return "";
+      }
+
+      const title = source
+        .replace(/\s+/g, " ")
+        .split(" ")
+        .slice(0, 7)
+        .join(" ")
+        .replace(/[.,;:!?]+$/, "");
+
+      return title ? `${title[0].toUpperCase()}${title.slice(1)}` : "";
+    }
+
     function normalizeListing(listing = {}, fallbackText = "") {
       const result = listing.result || fallbackText || "";
       const description = listing.description ||
         parseListingBlock(result, descriptionLabels, [...highlightsLabels, ...hashtagsLabels]);
+      const title = cleanListingField(listing.title);
+      const suggestedPrice =
+        cleanListingField(listing.suggestedPrice) ||
+        parseListingField(result, priceLabels);
       const highlights = Array.isArray(listing.highlights) && listing.highlights.length
         ? listing.highlights
         : parseListingBlock(result, highlightsLabels, hashtagsLabels)
@@ -2603,11 +2652,11 @@
         ...listing,
         result,
         title:
-          listing.title && listing.title !== "Listing"
-            ? listing.title
-            : parseListingField(result, titleLabels),
-        suggestedPrice:
-          listing.suggestedPrice || parseListingField(result, priceLabels),
+          title && title !== "Listing"
+            ? title
+            : parseListingField(result, titleLabels) ||
+              createFallbackTitle(listing.sourceDescription, description, result),
+        suggestedPrice,
         description,
         highlights,
         hashtags,
@@ -2658,7 +2707,7 @@
       const descriptionCopy = buildDescriptionCopy(listing);
       listingTitleText.textContent = listing.title || "-";
       listingDescriptionText.textContent = descriptionCopy || "-";
-      listingPriceText.textContent = listing.suggestedPrice || "-";
+      listingPriceText.textContent = listing.suggestedPrice || t("priceNotEstimated");
       copyButton.disabled = !descriptionCopy;
       copyTitleButton.disabled = !listing.title;
       copyDescriptionButton.disabled = !descriptionCopy;
