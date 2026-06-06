@@ -823,11 +823,20 @@ function createFallbackListingTitle(...values) {
 
 const titleLabels = ["Title", "Titulo", "Titel", "Titre", "Titolo"];
 const priceLabels = [
+  "Suggested resale price",
+  "Used-market suggested price",
+  "Market suggested price",
   "Suggested price",
+  "Preco de mercado sugerido",
   "Preco sugerido",
+  "Prijsadvies tweedehands",
   "Adviesprijs",
+  "Precio sugerido de segunda mano",
   "Precio sugerido",
+  "Prix conseille d'occasion",
+  "Prix conseillé d'occasion",
   "Prix suggere",
+  "Prezzo usato suggerito",
   "Prezzo suggerito",
 ];
 const descriptionLabels = [
@@ -2589,7 +2598,7 @@ const listingLanguageSettings = {
     name: "Brazilian Portuguese",
     currency: "Use EUR for Europe or R$ for Brazil when the context is clear.",
     format: `Titulo:
-Preco sugerido:
+Preco de mercado sugerido:
 Descricao:
 Destaques:
 - item
@@ -2603,7 +2612,7 @@ Hashtags:
     name: "English",
     currency: "Use EUR for Europe, USD for the United States, or GBP for the United Kingdom when the context is clear.",
     format: `Title:
-Suggested price:
+Suggested resale price:
 Description:
 Highlights:
 - item
@@ -2617,7 +2626,7 @@ Hashtags:
     name: "French",
     currency: "Use EUR unless the context clearly indicates another currency.",
     format: `Titre:
-Prix suggere:
+Prix conseille d'occasion:
 Description:
 Points forts:
 - item
@@ -2631,7 +2640,7 @@ Hashtags:
     name: "Dutch",
     currency: "Use EUR unless the context clearly indicates another currency.",
     format: `Titel:
-Adviesprijs:
+Prijsadvies tweedehands:
 Beschrijving:
 Highlights:
 - item
@@ -2645,7 +2654,7 @@ Hashtags:
     name: "Spanish",
     currency: "Use EUR or a local currency when the context is clear.",
     format: `Titulo:
-Precio sugerido:
+Precio sugerido de segunda mano:
 Descripcion:
 Destacados:
 - item
@@ -2659,7 +2668,7 @@ Hashtags:
     name: "Italian",
     currency: "Use EUR unless the context clearly indicates another currency.",
     format: `Titolo:
-Prezzo suggerito:
+Prezzo usato suggerito:
 Descrizione:
 Punti forti:
 - item
@@ -2756,7 +2765,13 @@ Rules:
 - Highlight real benefits and the apparent condition of the product.
 - Keep the title, suggested price, description, highlights, and hashtags clearly separated.
 - Always include a short marketplace title after the title label.
-- Always include a suggested price. If exact pricing is uncertain, provide a realistic EUR price range instead of leaving it blank.
+- Treat used-market pricing as a primary task, not an optional detail.
+- Estimate price from comparable secondhand-market behavior for similar brand, category, model, size, age, visible condition, seasonality, and the requested marketplace/channel.
+- Prefer realistic resale prices for Vinted, Marktplaats, OLX, Facebook Marketplace, and local European marketplaces. Do not use new-retail pricing unless it helps anchor the used value.
+- The suggested price line must start with one exact asking price that is easy to paste into a marketplace price field, for example "EUR 18" or "€18".
+- After the exact asking price, add a short resale-market note when useful, for example "market range €15-22, quick sale €14". Keep it on the same line.
+- If information is limited, still estimate a conservative used-market range from the visible category and condition instead of leaving the price blank.
+- For luxury, collectible, electronics, or authenticity-sensitive products, be conservative and mention uncertainty briefly in the suggested price line.
 - Do not repeat the title or suggested price inside the Description section.
 - Make the Description section ready to paste into the marketplace description field.
 - Mandatory output language: ${languageSettings.name}.

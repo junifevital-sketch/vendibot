@@ -1559,8 +1559,8 @@
         copyPrice: "Copiar preco",
         titlePart: "Titulo",
         descriptionPart: "Descricao para Vinted",
-        pricePart: "Preco sugerido",
-        priceFooterLabel: "Preco sugerido",
+        pricePart: "Preco de mercado sugerido",
+        priceFooterLabel: "Preco de mercado sugerido",
         priceNotEstimated: "Definir na Vinted",
         emptyResult: "Seu anuncio aparecera aqui.",
         analyzing: "Analisando produto e preparando anuncio...",
@@ -1684,8 +1684,8 @@
         copyPrice: "Copy price",
         titlePart: "Title",
         descriptionPart: "Vinted description",
-        pricePart: "Suggested price",
-        priceFooterLabel: "Suggested price",
+        pricePart: "Suggested resale price",
+        priceFooterLabel: "Suggested resale price",
         priceNotEstimated: "Set in Vinted",
         emptyResult: "Your listing will appear here.",
         analyzing: "Analyzing product and preparing listing...",
@@ -1809,8 +1809,8 @@
         copyPrice: "Prijs kopieren",
         titlePart: "Titel",
         descriptionPart: "Vinted-beschrijving",
-        pricePart: "Adviesprijs",
-        priceFooterLabel: "Adviesprijs",
+        pricePart: "Prijsadvies tweedehands",
+        priceFooterLabel: "Prijsadvies tweedehands",
         priceNotEstimated: "Instellen in Vinted",
         emptyResult: "Je advertentie verschijnt hier.",
         analyzing: "Product analyseren en advertentie voorbereiden...",
@@ -1934,8 +1934,8 @@
         copyPrice: "Copiar precio",
         titlePart: "Titulo",
         descriptionPart: "Descripcion para Vinted",
-        pricePart: "Precio sugerido",
-        priceFooterLabel: "Precio sugerido",
+        pricePart: "Precio sugerido de segunda mano",
+        priceFooterLabel: "Precio sugerido de segunda mano",
         priceNotEstimated: "Definir en Vinted",
         emptyResult: "Tu anuncio aparecera aqui.",
         analyzing: "Analizando producto y preparando anuncio...",
@@ -2564,11 +2564,20 @@
 
     const titleLabels = ["Title", "Titulo", "Titel", "Titre", "Titolo"];
     const priceLabels = [
+      "Suggested resale price",
+      "Used-market suggested price",
+      "Market suggested price",
       "Suggested price",
+      "Preco de mercado sugerido",
       "Preco sugerido",
+      "Prijsadvies tweedehands",
       "Adviesprijs",
+      "Precio sugerido de segunda mano",
       "Precio sugerido",
+      "Prix conseille d'occasion",
+      "Prix conseillé d'occasion",
       "Prix suggere",
+      "Prezzo usato suggerito",
       "Prezzo suggerito",
     ];
     const descriptionLabels = [
@@ -2687,6 +2696,13 @@
       }
 
       return parts.filter(Boolean).join("\n\n").trim() || listing.result || "";
+    }
+
+    function getCopyablePrice(value) {
+      const text = String(value || "").trim();
+      const match = text.match(/(?:EUR|€)?\s*(\d{1,5}(?:[.,]\d{1,2})?)/i);
+
+      return match ? match[1].replace(".", ",") : text;
     }
 
     function renderResult() {
@@ -3079,7 +3095,7 @@
     });
 
     copyPriceButton.addEventListener("click", () => {
-      copyListingText(state.currentListing?.suggestedPrice || "");
+      copyListingText(getCopyablePrice(state.currentListing?.suggestedPrice));
     });
 
     vintedLink.addEventListener("click", () => {
