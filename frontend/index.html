@@ -1380,36 +1380,15 @@
       </div>
       <section id="paymentInstructions" class="payment-instructions hidden" aria-live="polite">
         <div>
-          <h4 id="paymentInstructionsTitle">Payment details</h4>
-          <p id="paymentInstructionsSubtitle" class="plan-note">Send the exact amount and include the reference.</p>
-        </div>
-        <div class="payment-details">
-          <div class="payment-detail">
-            <span id="paymentAmountLabel">Amount</span>
-            <strong id="paymentAmountValue">-</strong>
-          </div>
-          <div class="payment-detail">
-            <span id="paymentReferenceLabel">Reference</span>
-            <strong id="paymentReferenceValue">-</strong>
-          </div>
-          <div class="payment-detail">
-            <span id="paymentHolderLabel">Account holder</span>
-            <strong id="paymentHolderValue">-</strong>
-          </div>
-          <div class="payment-detail">
-            <span id="paymentIbanLabel">IBAN</span>
-            <strong id="paymentIbanValue">-</strong>
-          </div>
-          <div id="paymentBicRow" class="payment-detail hidden">
-            <span id="paymentBicLabel">BIC</span>
-            <strong id="paymentBicValue">-</strong>
-          </div>
+          <h4 id="paymentInstructionsTitle">Secure payment ready</h4>
+          <p id="paymentInstructionsSubtitle" class="plan-note">We are opening the bunq payment page. Your credits will be added after confirmation.</p>
         </div>
         <div class="actions">
-          <button id="copyPaymentReferenceButton" class="btn btn-secondary" type="button">Copy reference</button>
+          <a id="paymentLinkButton" class="btn btn-primary" href="#" target="_blank" rel="noopener">Open payment</a>
+          <button id="checkPaymentButton" class="btn btn-secondary" type="button">I paid, check credits</button>
         </div>
       </section>
-      <p id="plansFootnote" class="plan-note">Manual payment for now. Online checkout will be added when the Stripe account is ready.</p>
+      <p id="plansFootnote" class="plan-note">Secure payment via bunq. Credits are added automatically after confirmation.</p>
     </section>
   </div>
 
@@ -1417,6 +1396,7 @@
     const API_BASE = window.location.port === "4173" ? "http://localhost:3001" : "";
     const TOKEN_KEY = "vendibot_token";
     const UI_LANGUAGE_KEY = "vendibot_ui_language";
+    const PENDING_PAYMENT_ORDER_KEY = "vendibot_pending_payment_order";
     const SUPPORTED_LANGUAGES = ["pt", "en", "fr", "es", "nl", "it"];
 
     const translations = {
@@ -1425,7 +1405,7 @@
         authBrandSubtitle: "Marketplace listing studio",
         heroTitle: "Anuncios melhores em poucos segundos.",
         heroSubtitle: "Veja o Vendibot transformar uma foto simples de produto em um anuncio pronto para vender.",
-        heroNote: "Teste gratis com 5 anuncios. Pagamento manual enquanto o Stripe fica pronto.",
+        heroNote: "Teste gratis com 5 anuncios. Depois, compre creditos avulsos com pagamento seguro.",
         demoBefore: "Antes",
         demoAfter: "Depois",
         demoSignal: "IA gerando anuncio",
@@ -1518,19 +1498,17 @@
         proPlanTitle: "Pro mensal",
         proPlanNote: "60 anuncios por mes, melhor para uso constante.",
         startPro: "Comprar creditos",
-        plansFootnote: "Pagamento via Wise. Os creditos entram automaticamente quando o pagamento for confirmado.",
-        paymentOpening: "Abrindo pagamento Wise...",
-        paymentReady: "Dados de pagamento gerados. Use a referencia {reference} para liberar seus creditos automaticamente.",
-        paymentDetailsTitle: "Dados para pagamento",
-        paymentDetailsSubtitle: "Transfira o valor exato e coloque a referencia no pagamento.",
-        paymentAmount: "Valor",
-        paymentReference: "Referencia",
-        paymentHolder: "Titular",
-        paymentIban: "IBAN",
-        paymentBic: "BIC",
-        copyReference: "Copiar referencia",
-        referenceCopied: "Referencia copiada.",
-        manualProRequested: "Pagamento iniciado. Use a referencia {reference} para liberar seus creditos automaticamente.",
+        plansFootnote: "Pagamento seguro via bunq. Os creditos entram automaticamente quando o pagamento for confirmado.",
+        paymentOpening: "Abrindo pagamento seguro...",
+        paymentReady: "Pagamento aberto. Depois da confirmacao, seus creditos entram automaticamente.",
+        paymentDetailsTitle: "Pagamento seguro pronto",
+        paymentDetailsSubtitle: "Vamos abrir a pagina do bunq. Se nada abrir, use o botao abaixo.",
+        paymentLink: "Abrir pagamento",
+        checkPayment: "Ja paguei, verificar creditos",
+        paymentChecking: "Verificando pagamento...",
+        paymentConfirmed: "Pagamento confirmado. Seus creditos foram adicionados.",
+        paymentPending: "Ainda nao apareceu como pago. Tente novamente em alguns instantes.",
+        manualProRequested: "Pagamento iniciado. Seus creditos entram automaticamente depois da confirmacao.",
         historyTitle: "Historico",
         historySubtitle: "Seus ultimos anuncios gerados.",
         refresh: "Atualizar",
@@ -1543,7 +1521,7 @@
         authBrandSubtitle: "Marketplace listing studio",
         heroTitle: "Better listings in seconds.",
         heroSubtitle: "Watch Vendibot turn a simple product photo into a ready-to-publish sales listing.",
-        heroNote: "Try 5 listings for free. Manual payment while Stripe gets ready.",
+        heroNote: "Try 5 listings for free. Then buy credit packs with secure payment.",
         demoBefore: "Before",
         demoAfter: "After",
         demoSignal: "AI writing listing",
@@ -1636,19 +1614,17 @@
         proPlanTitle: "Monthly Pro",
         proPlanNote: "60 listings per month, best for steady use.",
         startPro: "Buy credits",
-        plansFootnote: "Payment via Wise. Credits are added automatically when the payment is confirmed.",
-        paymentOpening: "Opening Wise payment...",
-        paymentReady: "Payment details created. Use reference {reference} so your credits are added automatically.",
-        paymentDetailsTitle: "Payment details",
-        paymentDetailsSubtitle: "Send the exact amount and include the reference in the payment.",
-        paymentAmount: "Amount",
-        paymentReference: "Reference",
-        paymentHolder: "Account holder",
-        paymentIban: "IBAN",
-        paymentBic: "BIC",
-        copyReference: "Copy reference",
-        referenceCopied: "Reference copied.",
-        manualProRequested: "Payment started. Use reference {reference} so your credits are added automatically.",
+        plansFootnote: "Secure payment via bunq. Credits are added automatically after confirmation.",
+        paymentOpening: "Opening secure payment...",
+        paymentReady: "Payment opened. After confirmation, your credits will be added automatically.",
+        paymentDetailsTitle: "Secure payment ready",
+        paymentDetailsSubtitle: "We are opening the bunq payment page. If nothing opens, use the button below.",
+        paymentLink: "Open payment",
+        checkPayment: "I paid, check credits",
+        paymentChecking: "Checking payment...",
+        paymentConfirmed: "Payment confirmed. Your credits have been added.",
+        paymentPending: "It is not marked as paid yet. Try again in a few moments.",
+        manualProRequested: "Payment started. Credits are added automatically after confirmation.",
         historyTitle: "History",
         historySubtitle: "Your latest generated listings.",
         refresh: "Refresh",
@@ -1661,7 +1637,7 @@
         authBrandSubtitle: "Marketplace listing studio",
         heroTitle: "Betere advertenties in seconden.",
         heroSubtitle: "Zie hoe Vendibot een simpele productfoto verandert in een kant-en-klare verkooptekst.",
-        heroNote: "Probeer 5 advertenties gratis. Betaling is handmatig zolang Stripe nog wordt ingericht.",
+        heroNote: "Probeer 5 advertenties gratis. Koop daarna losse credits met veilige betaling.",
         demoBefore: "Voor",
         demoAfter: "Na",
         demoSignal: "AI schrijft advertentie",
@@ -1753,9 +1729,18 @@
         regularPlanNote: "30 credits voor terugkerende verkopers.",
         proPlanTitle: "Pro per maand",
         proPlanNote: "60 advertenties per maand, ideaal voor vast gebruik.",
-        startPro: "Pro aanvragen",
-        plansFootnote: "Betaling is voorlopig handmatig. Online checkout komt zodra het Stripe-account klaar is.",
-        manualProRequested: "Pro-aanvraag genoteerd. Stuur support een bericht met je account-e-mail: {email}",
+        startPro: "Credits kopen",
+        plansFootnote: "Veilige betaling via bunq. Credits worden automatisch toegevoegd na bevestiging.",
+        paymentOpening: "Veilige betaling openen...",
+        paymentReady: "Betaling geopend. Na bevestiging worden je credits automatisch toegevoegd.",
+        paymentDetailsTitle: "Veilige betaling klaar",
+        paymentDetailsSubtitle: "We openen de bunq-betaalpagina. Als er niets opent, gebruik dan de knop hieronder.",
+        paymentLink: "Betaling openen",
+        checkPayment: "Ik heb betaald, credits controleren",
+        paymentChecking: "Betaling controleren...",
+        paymentConfirmed: "Betaling bevestigd. Je credits zijn toegevoegd.",
+        paymentPending: "De betaling is nog niet als betaald gemarkeerd. Probeer het zo opnieuw.",
+        manualProRequested: "Betaling gestart. Credits worden automatisch toegevoegd na bevestiging.",
         historyTitle: "Geschiedenis",
         historySubtitle: "Je laatst gegenereerde advertenties.",
         refresh: "Vernieuwen",
@@ -1768,7 +1753,7 @@
         authBrandSubtitle: "Marketplace listing studio",
         heroTitle: "Mejores anuncios en segundos.",
         heroSubtitle: "Mira como Vendibot convierte una foto simple de producto en un anuncio listo para publicar.",
-        heroNote: "Prueba 5 anuncios gratis. Pago manual mientras Stripe queda listo.",
+        heroNote: "Prueba 5 anuncios gratis. Luego compra paquetes de creditos con pago seguro.",
         demoBefore: "Antes",
         demoAfter: "Despues",
         demoSignal: "IA creando anuncio",
@@ -1860,9 +1845,18 @@
         regularPlanNote: "30 creditos para vendedores recurrentes.",
         proPlanTitle: "Pro mensual",
         proPlanNote: "60 anuncios al mes, mejor para uso constante.",
-        startPro: "Solicitar Pro",
-        plansFootnote: "Pago manual por ahora. El checkout online se agregara cuando la cuenta Stripe este lista.",
-        manualProRequested: "Solicitud de Pro registrada. Envia un mensaje a soporte con el email de tu cuenta: {email}",
+        startPro: "Comprar creditos",
+        plansFootnote: "Pago seguro via bunq. Los creditos se agregan automaticamente despues de la confirmacion.",
+        paymentOpening: "Abriendo pago seguro...",
+        paymentReady: "Pago abierto. Despues de la confirmacion, tus creditos se agregaran automaticamente.",
+        paymentDetailsTitle: "Pago seguro listo",
+        paymentDetailsSubtitle: "Abriremos la pagina de pago de bunq. Si no se abre nada, usa el boton abajo.",
+        paymentLink: "Abrir pago",
+        checkPayment: "Ya pague, verificar creditos",
+        paymentChecking: "Verificando pago...",
+        paymentConfirmed: "Pago confirmado. Tus creditos fueron agregados.",
+        paymentPending: "Todavia no aparece como pagado. Intenta de nuevo en unos instantes.",
+        manualProRequested: "Pago iniciado. Los creditos se agregan automaticamente despues de la confirmacion.",
         historyTitle: "Historial",
         historySubtitle: "Tus ultimos anuncios generados.",
         refresh: "Actualizar",
@@ -2003,6 +1997,7 @@
       user: null,
       result: "",
       listings: [],
+      pendingPaymentOrderId: localStorage.getItem(PENDING_PAYMENT_ORDER_KEY) || "",
     };
 
     const authView = document.getElementById("authView");
@@ -2089,18 +2084,8 @@
     const paymentInstructions = document.getElementById("paymentInstructions");
     const paymentInstructionsTitle = document.getElementById("paymentInstructionsTitle");
     const paymentInstructionsSubtitle = document.getElementById("paymentInstructionsSubtitle");
-    const paymentAmountLabel = document.getElementById("paymentAmountLabel");
-    const paymentAmountValue = document.getElementById("paymentAmountValue");
-    const paymentReferenceLabel = document.getElementById("paymentReferenceLabel");
-    const paymentReferenceValue = document.getElementById("paymentReferenceValue");
-    const paymentHolderLabel = document.getElementById("paymentHolderLabel");
-    const paymentHolderValue = document.getElementById("paymentHolderValue");
-    const paymentIbanLabel = document.getElementById("paymentIbanLabel");
-    const paymentIbanValue = document.getElementById("paymentIbanValue");
-    const paymentBicRow = document.getElementById("paymentBicRow");
-    const paymentBicLabel = document.getElementById("paymentBicLabel");
-    const paymentBicValue = document.getElementById("paymentBicValue");
-    const copyPaymentReferenceButton = document.getElementById("copyPaymentReferenceButton");
+    const paymentLinkButton = document.getElementById("paymentLinkButton");
+    const checkPaymentButton = document.getElementById("checkPaymentButton");
 
     function getInitialUiLanguage() {
       const savedLanguage = localStorage.getItem(UI_LANGUAGE_KEY);
@@ -2214,12 +2199,8 @@
       setText(plansFootnote, t("plansFootnote"));
       setText(paymentInstructionsTitle, t("paymentDetailsTitle"));
       setText(paymentInstructionsSubtitle, t("paymentDetailsSubtitle"));
-      setText(paymentAmountLabel, t("paymentAmount"));
-      setText(paymentReferenceLabel, t("paymentReference"));
-      setText(paymentHolderLabel, t("paymentHolder"));
-      setText(paymentIbanLabel, t("paymentIban"));
-      setText(paymentBicLabel, t("paymentBic"));
-      setText(copyPaymentReferenceButton, t("copyReference"));
+      setText(paymentLinkButton, t("paymentLink"));
+      setText(checkPaymentButton, t("checkPayment"));
 
       if (!state.result) {
         resultOutput.textContent = t("emptyResult");
@@ -2478,34 +2459,75 @@
       plansModal.classList.add("hidden");
     }
 
-    async function requestWiseCredits(packageKey = "credits_10") {
-      setStatus(generatorStatus, t("paymentOpening"), "");
+    function rememberPendingPayment(orderId) {
+      state.pendingPaymentOrderId = orderId || "";
+
+      if (state.pendingPaymentOrderId) {
+        localStorage.setItem(PENDING_PAYMENT_ORDER_KEY, state.pendingPaymentOrderId);
+      } else {
+        localStorage.removeItem(PENDING_PAYMENT_ORDER_KEY);
+      }
+    }
+
+    async function checkBunqPayment(orderId = state.pendingPaymentOrderId, showPending = true) {
+      if (!orderId) {
+        return false;
+      }
+
+      setStatus(generatorStatus, t("paymentChecking"), "");
 
       try {
-        const data = await apiFetch("/billing/wise/create-payment-link", {
+        const data = await apiFetch(`/billing/bunq/order/${encodeURIComponent(orderId)}`);
+        const order = data.order || {};
+
+        if (data.user) {
+          state.user = data.user;
+          renderAccount();
+        }
+
+        if (order.status === "paid") {
+          rememberPendingPayment("");
+          setStatus(generatorStatus, t("paymentConfirmed"), "success");
+          closePlans();
+          return true;
+        }
+
+        if (showPending) {
+          setStatus(generatorStatus, t("paymentPending"), "error");
+        }
+
+        return false;
+      } catch (error) {
+        if (showPending) {
+          setStatus(generatorStatus, error.message, "error");
+        }
+
+        return false;
+      }
+    }
+
+    async function requestBunqCredits(packageKey = "credits_10") {
+      setStatus(generatorStatus, t("paymentOpening"), "");
+      paymentInstructions.classList.add("hidden");
+
+      try {
+        const data = await apiFetch("/billing/bunq/create-payment-link", {
           method: "POST",
           body: JSON.stringify({ packageKey }),
         });
 
-        const reference = data.instructions?.reference || "";
-        const instructions = data.instructions || {};
-        const amount = instructions.amount
-          ? `${instructions.currency || "EUR"} ${instructions.amount}`
-          : "";
+        const paymentUrl = data.paymentUrl || data.order?.paymentUrl || "";
+        const orderId = data.order?.id || "";
 
-        paymentAmountValue.textContent = amount || "-";
-        paymentReferenceValue.textContent = reference || "-";
-        paymentHolderValue.textContent = instructions.accountHolder || "-";
-        paymentIbanValue.textContent = instructions.iban || "-";
-        paymentBicValue.textContent = instructions.bic || "-";
-        paymentBicRow.classList.toggle("hidden", !instructions.bic);
+        if (!paymentUrl || !orderId) {
+          throw new Error(t("checkoutUnavailable"));
+        }
+
+        rememberPendingPayment(orderId);
+        paymentLinkButton.href = paymentUrl;
         paymentInstructions.classList.remove("hidden");
-
-        setStatus(
-          generatorStatus,
-          t("paymentReady").replace("{reference}", reference),
-          "success",
-        );
+        setStatus(generatorStatus, t("paymentReady"), "success");
+        window.location.assign(paymentUrl);
       } catch (error) {
         setStatus(generatorStatus, error.message, "error");
       }
@@ -2521,6 +2543,15 @@
         const data = await apiFetch("/auth/me");
         showApp(data.user);
         loadHistory();
+        const bunqOrderFromUrl = new URLSearchParams(window.location.search).get("bunq_order");
+
+        if (bunqOrderFromUrl) {
+          rememberPendingPayment(bunqOrderFromUrl);
+          await checkBunqPayment(bunqOrderFromUrl, true);
+          window.history.replaceState({}, "", window.location.pathname);
+        } else if (state.pendingPaymentOrderId) {
+          await checkBunqPayment(state.pendingPaymentOrderId, false);
+        }
       } catch {
         showAuth();
       }
@@ -2586,23 +2617,14 @@
         closePlans();
       }
     });
-    startProCheckoutButton.addEventListener("click", () => requestWiseCredits("credits_30"));
+    startProCheckoutButton.addEventListener("click", () => requestBunqCredits("credits_30"));
     const planPackageKeys = ["credits_10", "credits_30", "credits_60"];
     planCards.forEach((planCard) => {
       planCard.addEventListener("click", () => {
-        requestWiseCredits(planPackageKeys[[...planCards].indexOf(planCard)] || "credits_10");
+        requestBunqCredits(planPackageKeys[[...planCards].indexOf(planCard)] || "credits_10");
       });
     });
-    copyPaymentReferenceButton.addEventListener("click", async () => {
-      const reference = paymentReferenceValue.textContent.trim();
-
-      if (!reference || reference === "-") {
-        return;
-      }
-
-      await navigator.clipboard.writeText(reference);
-      setStatus(generatorStatus, t("referenceCopied"), "success");
-    });
+    checkPaymentButton.addEventListener("click", () => checkBunqPayment());
     refreshHistoryButton.addEventListener("click", () => loadHistory(true));
 
     imagesInput.addEventListener("change", () => {

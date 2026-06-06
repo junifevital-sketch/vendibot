@@ -123,6 +123,33 @@ const WISE_API_BASE_URL =
   (WISE_ENVIRONMENT === "sandbox"
     ? "https://api.wise-sandbox.com"
     : "https://api.wise.com");
+const BUNQ_ENVIRONMENT = (process.env.BUNQ_ENVIRONMENT || "production").toLowerCase();
+const BUNQ_API_BASE_URL =
+  (process.env.BUNQ_API_BASE_URL || "").replace(/\/$/, "") ||
+  (BUNQ_ENVIRONMENT === "sandbox"
+    ? "https://public-api.sandbox.bunq.com/v1"
+    : "https://api.bunq.com/v1");
+const BUNQ_API_KEY = process.env.BUNQ_API_KEY || "";
+const BUNQ_USER_ID = process.env.BUNQ_USER_ID || "";
+const BUNQ_ACCOUNT_ID = process.env.BUNQ_ACCOUNT_ID || "";
+const BUNQ_SESSION_TOKEN =
+  process.env.BUNQ_SESSION_TOKEN ||
+  process.env.BUNQ_CLIENT_AUTHENTICATION ||
+  "";
+const BUNQ_PRIVATE_KEY = process.env.BUNQ_PRIVATE_KEY || "";
+const BUNQ_PUBLIC_KEY = process.env.BUNQ_PUBLIC_KEY || "";
+const BUNQ_DEVICE_DESCRIPTION =
+  process.env.BUNQ_DEVICE_DESCRIPTION || "Vendibot Render server";
+const BUNQ_PERMITTED_IPS = (process.env.BUNQ_PERMITTED_IPS || "")
+  .split(",")
+  .map((ip) => ip.trim())
+  .filter(Boolean);
+const BUNQ_WEBHOOK_SECRET = process.env.BUNQ_WEBHOOK_SECRET || "";
+const BUNQ_PAYMENT_DESCRIPTION =
+  process.env.BUNQ_PAYMENT_DESCRIPTION || "Vendibot credit package";
+const BUNQ_GEOLOCATION = process.env.BUNQ_GEOLOCATION || "0 0 0 0 NL";
+const BUNQ_LANGUAGE = process.env.BUNQ_LANGUAGE || "en_US";
+const BUNQ_REGION = process.env.BUNQ_REGION || "en_US";
 
 const CREDIT_PACKAGES = {
   credits_10: { key: "credits_10", credits: 10, amountCents: 300 },
@@ -170,6 +197,14 @@ if (!WISE_PAYMENT_LINK_URL && (!WISE_ACCOUNT_HOLDER || !WISE_IBAN)) {
 
 if (!WISE_API_TOKEN || !WISE_PROFILE_ID) {
   console.warn("Aviso: defina WISE_API_TOKEN e WISE_PROFILE_ID para a Wise.");
+}
+
+if (!BUNQ_API_KEY && !BUNQ_SESSION_TOKEN) {
+  console.warn("Aviso: defina BUNQ_API_KEY no Render para pagamentos bunq.");
+}
+
+if (!BUNQ_USER_ID || !BUNQ_ACCOUNT_ID) {
+  console.warn("Aviso: defina BUNQ_USER_ID e BUNQ_ACCOUNT_ID no Render.");
 }
 
 if (IS_PRODUCTION && !DATABASE_URL) {
@@ -285,6 +320,26 @@ app.post(
 
 app.get("/billing/wise/webhook", (_req, res) => {
   res.json({ ok: true, webhook: "wise" });
+});
+
+app.post(
+  "/billing/bunq/webhook",
+  express.raw({ type: "*/*" }),
+  async (req, res) => {
+    try {
+      await handleBunqWebhook(req);
+      res.json({ received: true });
+    } catch (err) {
+      console.error("Falha ao processar webhook do bunq:", err);
+      res.status(err.status || 400).json({
+        error: err.message || "Webhook bunq invalido.",
+      });
+    }
+  },
+);
+
+app.get("/billing/bunq/webhook", (_req, res) => {
+  res.json({ ok: true, webhook: "bunq" });
 });
 
 app.use(express.json({ limit: "1mb" }));
@@ -433,6 +488,39 @@ async function initDataStore() {
       ON wise_credit_orders (status, currency, amount_cents);
 
     CREATE TABLE IF NOT EXISTS wise_webhook_events (
+      delivery_id text PRIMARY KEY,
+      event_type text,
+      processed_at timestamptz NOT NULL DEFAULT now()
+    );
+
+    CREATE TABLE IF NOT EXISTS bunq_credit_orders (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+      package_key text NOT NULL,
+      credits integer NOT NULL,
+      amount_cents integer NOT NULL,
+      currency text NOT NULL DEFAULT 'EUR',
+      reference text UNIQUE NOT NULL,
+      bunqme_tab_id text,
+      payment_url text,
+      status text NOT NULL DEFAULT 'pending',
+      raw_response jsonb,
+      raw_event jsonb,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      paid_at timestamptz,
+      updated_at timestamptz NOT NULL DEFAULT now()
+    );
+
+    CREATE INDEX IF NOT EXISTS bunq_credit_orders_user_id_created_at_idx
+      ON bunq_credit_orders (user_id, created_at DESC);
+
+    CREATE INDEX IF NOT EXISTS bunq_credit_orders_status_created_at_idx
+      ON bunq_credit_orders (status, created_at DESC);
+
+    CREATE INDEX IF NOT EXISTS bunq_credit_orders_bunqme_tab_id_idx
+      ON bunq_credit_orders (bunqme_tab_id);
+
+    CREATE TABLE IF NOT EXISTS bunq_webhook_events (
       delivery_id text PRIMARY KEY,
       event_type text,
       processed_at timestamptz NOT NULL DEFAULT now()
@@ -991,6 +1079,682 @@ function generateWiseReference() {
   return `VENDIBOT-${crypto.randomBytes(5).toString("hex").toUpperCase()}`;
 }
 
+let bunqRuntimeContext = null;
+
+function formatAmountCents(amountCents) {
+  return (Number(amountCents || 0) / 100).toFixed(2);
+}
+
+function generateBunqReference() {
+  return `VENDIBOT-${crypto.randomBytes(5).toString("hex").toUpperCase()}`;
+}
+
+function normalizePem(value) {
+  return String(value || "").replace(/\\n/g, "\n").trim();
+}
+
+function createBunqKeyPair() {
+  if (BUNQ_PRIVATE_KEY) {
+    const privateKey = normalizePem(BUNQ_PRIVATE_KEY);
+    const publicKey = BUNQ_PUBLIC_KEY
+      ? normalizePem(BUNQ_PUBLIC_KEY)
+      : crypto
+          .createPublicKey(privateKey)
+          .export({ type: "spki", format: "pem" });
+
+    return { privateKey, publicKey };
+  }
+
+  const keyPair = crypto.generateKeyPairSync("rsa", {
+    modulusLength: 2048,
+    publicKeyEncoding: { type: "spki", format: "pem" },
+    privateKeyEncoding: { type: "pkcs8", format: "pem" },
+  });
+
+  return keyPair;
+}
+
+function signBunqPayload(payload, privateKey) {
+  return crypto
+    .sign("sha256", Buffer.from(payload), {
+      key: privateKey,
+      padding: crypto.constants.RSA_PKCS1_PADDING,
+    })
+    .toString("base64");
+}
+
+function flattenStrings(value, output = []) {
+  if (value === null || value === undefined) {
+    return output;
+  }
+
+  if (typeof value === "string" || typeof value === "number") {
+    output.push(String(value));
+    return output;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((item) => flattenStrings(item, output));
+    return output;
+  }
+
+  if (typeof value === "object") {
+    Object.values(value).forEach((item) => flattenStrings(item, output));
+  }
+
+  return output;
+}
+
+function findBunqKey(value, key) {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findBunqKey(item, key);
+
+      if (found !== undefined) {
+        return found;
+      }
+    }
+
+    return undefined;
+  }
+
+  if (typeof value === "object") {
+    if (Object.prototype.hasOwnProperty.call(value, key)) {
+      return value[key];
+    }
+
+    for (const item of Object.values(value)) {
+      const found = findBunqKey(item, key);
+
+      if (found !== undefined) {
+        return found;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function collectBunqKey(value, key, output = []) {
+  if (value === null || value === undefined) {
+    return output;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectBunqKey(item, key, output));
+    return output;
+  }
+
+  if (typeof value === "object") {
+    if (Object.prototype.hasOwnProperty.call(value, key)) {
+      output.push(value[key]);
+    }
+
+    Object.values(value).forEach((item) => collectBunqKey(item, key, output));
+  }
+
+  return output;
+}
+
+function getBunqToken(response) {
+  const token = findBunqKey(response, "Token");
+  return String(token?.token || token || "");
+}
+
+function getBunqCreatedId(response) {
+  const idWrapper = findBunqKey(response, "Id");
+  const id = idWrapper?.id || findBunqKey(response, "id");
+  return id === undefined || id === null ? "" : String(id);
+}
+
+function getBunqSessionUserId(response) {
+  return String(
+    findBunqKey(response, "UserPerson")?.id ||
+      findBunqKey(response, "UserCompany")?.id ||
+      findBunqKey(response, "UserPaymentServiceProvider")?.id ||
+      findBunqKey(response, "UserApiKey")?.id ||
+      "",
+  );
+}
+
+function getBunqPaymentUrl(response) {
+  const preferredKeys = [
+    "bunqme_tab_share_url",
+    "bunqme_tab_url",
+    "bunqme_share_url",
+    "share_url",
+    "url",
+  ];
+
+  for (const key of preferredKeys) {
+    const value = findBunqKey(response, key);
+
+    if (typeof value === "string" && /^https?:\/\//i.test(value)) {
+      return value;
+    }
+  }
+
+  return (
+    flattenStrings(response).find((value) =>
+      /^https?:\/\/(www\.)?bunq\.me\//i.test(value),
+    ) || ""
+  );
+}
+
+function getBunqErrorMessage(response) {
+  const errors = collectBunqKey(response, "Error");
+  const descriptions = errors
+    .flatMap((error) => (Array.isArray(error) ? error : [error]))
+    .map((error) => error?.error_description || error?.description || error)
+    .filter(Boolean);
+
+  return descriptions.join(" ") || "Falha na comunicacao com o bunq.";
+}
+
+async function bunqFetch(pathname, options = {}) {
+  const method = options.method || "GET";
+  const bodyText =
+    options.body === undefined ? "" : JSON.stringify(options.body);
+  const headers = {
+    Accept: "application/json",
+    "Cache-Control": "no-cache",
+    "User-Agent": "Vendibot/1.0",
+    "X-Bunq-Language": BUNQ_LANGUAGE,
+    "X-Bunq-Region": BUNQ_REGION,
+    "X-Bunq-Geolocation": BUNQ_GEOLOCATION,
+    "X-Bunq-Client-Request-Id": crypto.randomUUID(),
+    ...(options.headers || {}),
+  };
+
+  if (bodyText) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  if (options.authToken) {
+    headers["X-Bunq-Client-Authentication"] = options.authToken;
+  }
+
+  if (bodyText && options.privateKey && options.signed !== false) {
+    headers["X-Bunq-Client-Signature"] = signBunqPayload(
+      bodyText,
+      options.privateKey,
+    );
+  }
+
+  const response = await fetch(`${BUNQ_API_BASE_URL}${pathname}`, {
+    method,
+    headers,
+    body: bodyText || undefined,
+  });
+
+  const responseText = await response.text();
+  const data = responseText ? JSON.parse(responseText) : {};
+
+  if (!response.ok) {
+    const err = new Error(getBunqErrorMessage(data));
+    err.status = response.status;
+    err.response = data;
+    throw err;
+  }
+
+  return data;
+}
+
+async function ensureBunqSession() {
+  if (bunqRuntimeContext?.sessionToken) {
+    return bunqRuntimeContext;
+  }
+
+  const keyPair = createBunqKeyPair();
+
+  if (BUNQ_SESSION_TOKEN) {
+    if (!BUNQ_PRIVATE_KEY) {
+      const err = new Error(
+        "Configure BUNQ_PRIVATE_KEY junto com BUNQ_SESSION_TOKEN, ou use apenas BUNQ_API_KEY.",
+      );
+      err.status = 500;
+      throw err;
+    }
+
+    bunqRuntimeContext = {
+      privateKey: keyPair.privateKey,
+      publicKey: keyPair.publicKey,
+      sessionToken: BUNQ_SESSION_TOKEN,
+      userId: BUNQ_USER_ID,
+    };
+    return bunqRuntimeContext;
+  }
+
+  if (!BUNQ_API_KEY) {
+    const err = new Error("Configure BUNQ_API_KEY no Render.");
+    err.status = 500;
+    throw err;
+  }
+
+  const installation = await bunqFetch("/installation", {
+    method: "POST",
+    body: { client_public_key: keyPair.publicKey },
+    signed: false,
+  });
+  const installationToken = getBunqToken(installation);
+
+  if (!installationToken) {
+    const err = new Error("O bunq nao retornou token de instalacao.");
+    err.status = 502;
+    throw err;
+  }
+
+  const deviceBody = {
+    description: BUNQ_DEVICE_DESCRIPTION,
+    secret: BUNQ_API_KEY,
+  };
+
+  if (BUNQ_PERMITTED_IPS.length) {
+    deviceBody.permitted_ips = BUNQ_PERMITTED_IPS;
+  }
+
+  await bunqFetch("/device-server", {
+    method: "POST",
+    authToken: installationToken,
+    privateKey: keyPair.privateKey,
+    body: deviceBody,
+  });
+
+  const session = await bunqFetch("/session-server", {
+    method: "POST",
+    authToken: installationToken,
+    privateKey: keyPair.privateKey,
+    body: { secret: BUNQ_API_KEY },
+  });
+  const sessionToken = getBunqToken(session);
+
+  if (!sessionToken) {
+    const err = new Error("O bunq nao retornou token de sessao.");
+    err.status = 502;
+    throw err;
+  }
+
+  bunqRuntimeContext = {
+    privateKey: keyPair.privateKey,
+    publicKey: keyPair.publicKey,
+    installationToken,
+    sessionToken,
+    userId: BUNQ_USER_ID || getBunqSessionUserId(session),
+  };
+
+  return bunqRuntimeContext;
+}
+
+async function bunqApi(pathname, options = {}) {
+  const context = await ensureBunqSession();
+  return bunqFetch(pathname, {
+    ...options,
+    authToken: context.sessionToken,
+    privateKey: context.privateKey,
+  });
+}
+
+function normalizeBunqOrder(row) {
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    userId: row.user_id || row.userId,
+    packageKey: row.package_key || row.packageKey,
+    credits: Number(row.credits || 0),
+    amountCents: Number(row.amount_cents || row.amountCents || 0),
+    currency: row.currency || "EUR",
+    reference: row.reference || "",
+    bunqmeTabId: row.bunqme_tab_id || row.bunqmeTabId || "",
+    paymentUrl: row.payment_url || row.paymentUrl || "",
+    status: row.status || "pending",
+    createdAt:
+      row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+    paidAt: row.paid_at instanceof Date ? row.paid_at.toISOString() : row.paid_at,
+  };
+}
+
+function isBunqTabPaid(response) {
+  const resultInquiries = [
+    ...collectBunqKey(response, "BunqMeTabResultInquiry"),
+    ...collectBunqKey(response, "bunqme_tab_result_inquiry"),
+    ...collectBunqKey(response, "result_inquiries"),
+  ].filter(Boolean);
+
+  if (resultInquiries.length > 0) {
+    return true;
+  }
+
+  const strings = flattenStrings(response).map((value) => value.toLowerCase());
+  return strings.some((value) =>
+    ["paid", "accepted", "completed", "settled", "succeeded"].includes(value),
+  );
+}
+
+async function updateBunqOrderPaymentData(order, apiResponse, paymentUrl) {
+  const bunqmeTabId = getBunqCreatedId(apiResponse) || order.bunqmeTabId;
+
+  if (!pool) {
+    order.bunqmeTabId = bunqmeTabId;
+    order.paymentUrl = paymentUrl;
+    return order;
+  }
+
+  const result = await pool.query(
+    `UPDATE bunq_credit_orders
+      SET bunqme_tab_id = $2,
+          payment_url = $3,
+          raw_response = $4,
+          updated_at = now()
+      WHERE id = $1
+      RETURNING *`,
+    [order.id, bunqmeTabId, paymentUrl, JSON.stringify(apiResponse)],
+  );
+
+  return normalizeBunqOrder(result.rows[0]);
+}
+
+async function createBunqPaymentTab(order) {
+  if (!BUNQ_ACCOUNT_ID) {
+    const err = new Error("Configure BUNQ_ACCOUNT_ID no Render.");
+    err.status = 500;
+    throw err;
+  }
+
+  const context = await ensureBunqSession();
+  const userId = BUNQ_USER_ID || context.userId;
+
+  if (!userId) {
+    const err = new Error("Configure BUNQ_USER_ID no Render.");
+    err.status = 500;
+    throw err;
+  }
+
+  const description = `${BUNQ_PAYMENT_DESCRIPTION} - ${order.credits} credits - ${order.reference}`;
+  const route = `/user/${encodeURIComponent(userId)}/monetary-account/${encodeURIComponent(
+    BUNQ_ACCOUNT_ID,
+  )}/bunqme-tab`;
+  const body = {
+    bunqme_tab_entry: {
+      amount_inquired: {
+        value: formatAmountCents(order.amountCents),
+        currency: order.currency,
+      },
+      description,
+      redirect_url: `${APP_URL}/?bunq_order=${encodeURIComponent(order.id)}`,
+    },
+  };
+
+  const createdTab = await bunqApi(route, {
+    method: "POST",
+    body,
+  });
+  const bunqmeTabId = getBunqCreatedId(createdTab);
+  let tabResponse = createdTab;
+
+  if (bunqmeTabId) {
+    tabResponse = await bunqApi(`${route}/${encodeURIComponent(bunqmeTabId)}`);
+  }
+
+  const paymentUrl = getBunqPaymentUrl(tabResponse) || getBunqPaymentUrl(createdTab);
+
+  if (!paymentUrl) {
+    const err = new Error("O bunq criou o pedido, mas nao retornou o link de pagamento.");
+    err.status = 502;
+    throw err;
+  }
+
+  return updateBunqOrderPaymentData(
+    { ...order, bunqmeTabId },
+    { createdTab, tabResponse },
+    paymentUrl,
+  );
+}
+
+async function createBunqCreditOrder(user, packageKey) {
+  const selectedPackage = CREDIT_PACKAGES[packageKey];
+
+  if (!selectedPackage) {
+    return null;
+  }
+
+  const order = {
+    id: crypto.randomUUID(),
+    userId: user.id,
+    packageKey: selectedPackage.key,
+    credits: selectedPackage.credits,
+    amountCents: selectedPackage.amountCents,
+    currency: "EUR",
+    reference: generateBunqReference(),
+    status: "pending",
+    createdAt: new Date().toISOString(),
+  };
+
+  if (!pool) {
+    user.bunqCreditOrders = [order, ...(user.bunqCreditOrders || [])];
+    await updateUser(user);
+    return createBunqPaymentTab(order);
+  }
+
+  const result = await pool.query(
+    `INSERT INTO bunq_credit_orders (
+      id, user_id, package_key, credits, amount_cents, currency, reference
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+    RETURNING *`,
+    [
+      order.id,
+      order.userId,
+      order.packageKey,
+      order.credits,
+      order.amountCents,
+      order.currency,
+      order.reference,
+    ],
+  );
+
+  return createBunqPaymentTab(normalizeBunqOrder(result.rows[0]));
+}
+
+async function getBunqOrder(orderId, userId = "") {
+  if (!pool) {
+    const users = readUsersJson();
+    const owner = users.find((user) =>
+      (user.bunqCreditOrders || []).some((order) => order.id === orderId),
+    );
+    const order = owner?.bunqCreditOrders?.find((item) => item.id === orderId);
+
+    if (!order || (userId && owner.id !== userId)) {
+      return null;
+    }
+
+    return normalizeBunqOrder({ ...order, userId: owner.id });
+  }
+
+  const query = userId
+    ? `SELECT * FROM bunq_credit_orders WHERE id = $1 AND user_id = $2`
+    : `SELECT * FROM bunq_credit_orders WHERE id = $1`;
+  const params = userId ? [orderId, userId] : [orderId];
+  const result = await pool.query(query, params);
+  return normalizeBunqOrder(result.rows[0]);
+}
+
+async function getPendingBunqOrders(limit = 20) {
+  if (!pool) {
+    return [];
+  }
+
+  const result = await pool.query(
+    `SELECT * FROM bunq_credit_orders
+      WHERE status = 'pending'
+      ORDER BY created_at DESC
+      LIMIT $1`,
+    [limit],
+  );
+
+  return result.rows.map(normalizeBunqOrder);
+}
+
+async function fetchBunqTab(order) {
+  if (!order?.bunqmeTabId || !BUNQ_ACCOUNT_ID) {
+    return null;
+  }
+
+  const context = await ensureBunqSession();
+  const userId = BUNQ_USER_ID || context.userId;
+
+  if (!userId) {
+    return null;
+  }
+
+  return bunqApi(
+    `/user/${encodeURIComponent(userId)}/monetary-account/${encodeURIComponent(
+      BUNQ_ACCOUNT_ID,
+    )}/bunqme-tab/${encodeURIComponent(order.bunqmeTabId)}`,
+  );
+}
+
+async function creditBunqOrder(order, rawEvent) {
+  if (!order || order.status === "paid") {
+    return false;
+  }
+
+  if (!pool) {
+    const users = readUsersJson();
+    const user = users.find((item) => item.id === order.userId);
+
+    if (!user) {
+      return false;
+    }
+
+    const savedOrder = (user.bunqCreditOrders || []).find(
+      (item) => item.id === order.id,
+    );
+
+    if (!savedOrder || savedOrder.status === "paid") {
+      return false;
+    }
+
+    savedOrder.status = "paid";
+    savedOrder.paidAt = new Date().toISOString();
+    user.creditsBalance = Number(user.creditsBalance || 0) + order.credits;
+    await updateUser(user);
+    return true;
+  }
+
+  const result = await pool.query(
+    `WITH paid_order AS (
+      UPDATE bunq_credit_orders
+      SET status = 'paid',
+          raw_event = $2,
+          paid_at = COALESCE(paid_at, now()),
+          updated_at = now()
+      WHERE id = $1 AND status <> 'paid'
+      RETURNING user_id, credits
+    )
+    UPDATE users
+    SET credits_balance = credits_balance + paid_order.credits,
+        updated_at = now()
+    FROM paid_order
+    WHERE users.id = paid_order.user_id
+    RETURNING users.id`,
+    [order.id, JSON.stringify(rawEvent || {})],
+  );
+
+  return result.rowCount > 0;
+}
+
+async function checkAndCreditBunqOrder(order) {
+  if (!order || order.status === "paid") {
+    return order;
+  }
+
+  const tabResponse = await fetchBunqTab(order);
+
+  if (!tabResponse || !isBunqTabPaid(tabResponse)) {
+    return order;
+  }
+
+  await creditBunqOrder(order, tabResponse);
+  return getBunqOrder(order.id);
+}
+
+async function reconcilePendingBunqOrders(limit = 20) {
+  const pendingOrders = await getPendingBunqOrders(limit);
+
+  for (const order of pendingOrders) {
+    try {
+      await checkAndCreditBunqOrder(order);
+    } catch (err) {
+      console.warn("Falha ao reconciliar pedido bunq:", err.message);
+    }
+  }
+}
+
+function parseRawJsonBody(req) {
+  if (!req.body?.length) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(req.body.toString("utf8"));
+  } catch {
+    return {};
+  }
+}
+
+async function handleBunqWebhook(req) {
+  const providedSecret = String(
+    req.query?.secret ||
+      req.headers["x-vendibot-webhook-secret"] ||
+      req.headers["x-bunq-webhook-secret"] ||
+      "",
+  );
+
+  if (BUNQ_WEBHOOK_SECRET && providedSecret !== BUNQ_WEBHOOK_SECRET) {
+    const err = new Error("Webhook bunq nao autorizado.");
+    err.status = 401;
+    throw err;
+  }
+
+  const event = parseRawJsonBody(req);
+  const deliveryId =
+    String(
+      req.headers["x-bunq-client-request-id"] ||
+        req.headers["x-request-id"] ||
+        findBunqKey(event, "id") ||
+        "",
+    ) || crypto.createHash("sha256").update(req.body || "").digest("hex");
+  const eventType =
+    String(findBunqKey(event, "notification_category") || findBunqKey(event, "type") || "") ||
+    "bunq";
+
+  if (pool) {
+    const existingDelivery = await pool.query(
+      "SELECT 1 FROM bunq_webhook_events WHERE delivery_id = $1",
+      [deliveryId],
+    );
+
+    if (existingDelivery.rowCount > 0) {
+      return;
+    }
+
+    await pool.query(
+      `INSERT INTO bunq_webhook_events (delivery_id, event_type)
+      VALUES ($1, $2)
+      ON CONFLICT (delivery_id) DO NOTHING`,
+      [deliveryId, eventType],
+    );
+  }
+
+  await reconcilePendingBunqOrders();
+}
+
 async function createWiseCreditOrder(user, packageKey) {
   const selectedPackage = CREDIT_PACKAGES[packageKey];
 
@@ -1365,6 +2129,9 @@ app.get("/health", async (_req, res, next) => {
           WISE_PROFILE_ID &&
           (WISE_PAYMENT_LINK_URL || (WISE_ACCOUNT_HOLDER && WISE_IBAN)),
       ),
+      bunqPayments: Boolean(
+        (BUNQ_API_KEY || BUNQ_SESSION_TOKEN) && BUNQ_ACCOUNT_ID,
+      ),
     });
   } catch (err) {
     next(err);
@@ -1560,6 +2327,62 @@ app.post("/billing/wise/create-payment-link", requireAuth, async (req, res, next
         bic: WISE_BIC,
         note: WISE_PAYMENT_NOTE,
       },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post("/billing/bunq/create-payment-link", requireAuth, async (req, res, next) => {
+  try {
+    if (!BUNQ_API_KEY && !BUNQ_SESSION_TOKEN) {
+      res.status(500).json({
+        error: "Configure BUNQ_API_KEY no Render.",
+      });
+      return;
+    }
+
+    if (!BUNQ_ACCOUNT_ID) {
+      res.status(500).json({
+        error: "Configure BUNQ_ACCOUNT_ID no Render.",
+      });
+      return;
+    }
+
+    const packageKey = String(req.body?.packageKey || "credits_10");
+    const order = await createBunqCreditOrder(req.user, packageKey);
+
+    if (!order) {
+      res.status(400).json({ error: "Pacote de creditos invalido." });
+      return;
+    }
+
+    await incrementUserAnalytics(req.user, "checkout_attempt");
+
+    res.status(201).json({
+      order,
+      paymentUrl: order.paymentUrl,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get("/billing/bunq/order/:id", requireAuth, async (req, res, next) => {
+  try {
+    const order = await getBunqOrder(String(req.params.id || ""), req.user.id);
+
+    if (!order) {
+      res.status(404).json({ error: "Pedido de pagamento nao encontrado." });
+      return;
+    }
+
+    const updatedOrder = await checkAndCreditBunqOrder(order);
+    const updatedUser = await findUserById(req.user.id);
+
+    res.json({
+      order: updatedOrder,
+      user: updatedUser ? safeUser(updatedUser) : safeUser(req.user),
     });
   } catch (err) {
     next(err);
