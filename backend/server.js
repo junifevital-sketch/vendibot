@@ -804,6 +804,18 @@ function parseListingList(result, startLabels, stopLabels = []) {
     .filter(Boolean);
 }
 
+function parseListingPrice(result) {
+  return (
+    parseListingField(result, priceLabels) ||
+    parseListingBlock(result, priceLabels, [
+      ...evidenceLabels,
+      ...descriptionLabels,
+      ...highlightsLabels,
+      ...hashtagsLabels,
+    ])
+  );
+}
+
 const titleLabels = ["Title", "Titulo", "Titel", "Titre", "Titolo"];
 const priceLabels = [
   "Suggested resale price",
@@ -843,7 +855,7 @@ const highlightsLabels = [
   "Destacados",
   "Punti forti",
 ];
-const hashtagsLabels = ["Hashtags"];
+const hashtagsLabels = ["Hashtags", "Tags"];
 const allListingSectionLabels = [
   ...titleLabels,
   ...priceLabels,
@@ -862,7 +874,9 @@ function safeListing(listing) {
       ...hashtagsLabels,
     ]);
   const title = cleanListingField(listing.title);
-  const suggestedPrice = cleanListingField(listing.suggestedPrice);
+  const suggestedPrice =
+    cleanListingField(listing.suggestedPrice) ||
+    parseListingPrice(listing.result);
 
   return {
     id: listing.id,
@@ -878,7 +892,8 @@ function safeListing(listing) {
         ? listing.hashtags
         : parseListingBlock(listing.result, hashtagsLabels, allListingSectionLabels)
             .split(/\s+/)
-            .filter((item) => item.startsWith("#")),
+            .map((item) => item.trim())
+            .filter(Boolean),
     marketplace: listing.marketplace || "",
     language: listing.language || "",
     sourceDescription: listing.sourceDescription || "",
@@ -900,7 +915,7 @@ async function createListingRecord(user, listing) {
     parseListingField(listing.result, titleLabels);
   const suggestedPrice =
     cleanListingField(listing.suggestedPrice) ||
-    parseListingField(listing.result, priceLabels);
+    parseListingPrice(listing.result);
 
   const record = {
     id: crypto.randomUUID(),
@@ -917,7 +932,8 @@ async function createListingRecord(user, listing) {
         ? listing.hashtags
         : parseListingBlock(listing.result, hashtagsLabels, allListingSectionLabels)
             .split(/\s+/)
-            .filter((item) => item.startsWith("#")),
+            .map((item) => item.trim())
+            .filter(Boolean),
     marketplace: listing.marketplace || "",
     language: listing.language || "",
     sourceDescription: listing.sourceDescription || "",
@@ -2578,6 +2594,15 @@ const listingLanguageSettings = {
   pt: {
     name: "Brazilian Portuguese",
     currency: "Use EUR for Europe or R$ for Brazil when the context is clear.",
+    titleLabel: "Titulo",
+    priceLabel: "Preco sugerido",
+    fastSaleLabel: "Preco para vender rapido",
+    fairMarketLabel: "Preco justo de mercado",
+    maxPriceLabel: "Preco maximo estimado",
+    evidenceLabel: "Evidencia de mercado",
+    descriptionLabel: "Descricao",
+    highlightsLabel: "Destaques",
+    tagsLabel: "Tags",
     format: `Titulo:
 Preco de mercado sugerido:
 Evidencia de mercado:
@@ -2593,6 +2618,15 @@ Hashtags:
   en: {
     name: "English",
     currency: "Use EUR for Europe, USD for the United States, or GBP for the United Kingdom when the context is clear.",
+    titleLabel: "Title",
+    priceLabel: "Suggested price",
+    fastSaleLabel: "Fast Sale Price",
+    fairMarketLabel: "Fair Market Price",
+    maxPriceLabel: "Maximum Estimated Price",
+    evidenceLabel: "Market evidence",
+    descriptionLabel: "Description",
+    highlightsLabel: "Highlights",
+    tagsLabel: "Tags",
     format: `Title:
 Suggested resale price:
 Market evidence:
@@ -2608,6 +2642,15 @@ Hashtags:
   fr: {
     name: "French",
     currency: "Use EUR unless the context clearly indicates another currency.",
+    titleLabel: "Titre",
+    priceLabel: "Prix conseille",
+    fastSaleLabel: "Prix pour vendre rapidement",
+    fairMarketLabel: "Prix juste du marche",
+    maxPriceLabel: "Prix maximum estime",
+    evidenceLabel: "Preuve de marche",
+    descriptionLabel: "Description",
+    highlightsLabel: "Points forts",
+    tagsLabel: "Tags",
     format: `Titre:
 Prix conseille d'occasion:
 Preuve de marche:
@@ -2623,6 +2666,15 @@ Hashtags:
   nl: {
     name: "Dutch",
     currency: "Use EUR unless the context clearly indicates another currency.",
+    titleLabel: "Titel",
+    priceLabel: "Prijsadvies",
+    fastSaleLabel: "Snelle verkoopprijs",
+    fairMarketLabel: "Eerlijke marktprijs",
+    maxPriceLabel: "Maximale geschatte prijs",
+    evidenceLabel: "Marktbewijs",
+    descriptionLabel: "Beschrijving",
+    highlightsLabel: "Highlights",
+    tagsLabel: "Tags",
     format: `Titel:
 Prijsadvies tweedehands:
 Marktbewijs:
@@ -2638,6 +2690,15 @@ Hashtags:
   es: {
     name: "Spanish",
     currency: "Use EUR or a local currency when the context is clear.",
+    titleLabel: "Titulo",
+    priceLabel: "Precio sugerido",
+    fastSaleLabel: "Precio para venta rapida",
+    fairMarketLabel: "Precio justo de mercado",
+    maxPriceLabel: "Precio maximo estimado",
+    evidenceLabel: "Evidencia de mercado",
+    descriptionLabel: "Descripcion",
+    highlightsLabel: "Destacados",
+    tagsLabel: "Tags",
     format: `Titulo:
 Precio sugerido de segunda mano:
 Evidencia de mercado:
@@ -2653,6 +2714,15 @@ Hashtags:
   it: {
     name: "Italian",
     currency: "Use EUR unless the context clearly indicates another currency.",
+    titleLabel: "Titolo",
+    priceLabel: "Prezzo suggerito",
+    fastSaleLabel: "Prezzo per vendita rapida",
+    fairMarketLabel: "Prezzo equo di mercato",
+    maxPriceLabel: "Prezzo massimo stimato",
+    evidenceLabel: "Evidenza di mercato",
+    descriptionLabel: "Descrizione",
+    highlightsLabel: "Punti forti",
+    tagsLabel: "Tags",
     format: `Titolo:
 Prezzo usato suggerito:
 Evidenza di mercato:
@@ -2814,65 +2884,53 @@ app.post(
 
       content.push({
         type: "input_text",
-        text: `
-You are a specialist resale stylist, secondhand fashion pricing analyst, and marketplace listing writer for Vinted, Marktplaats, Facebook Marketplace, OLX, Depop, Vestiaire Collective, and local European marketplaces.
+        text: `You are a strict backend visual analyst, web-search pricing expert, and marketplace copywriter specialized in secondhand items, including clothing, electronics, furniture, decor, accessories, shoes, bags, and collectibles.
 
-Your job is to turn a seller's quick photos and rough notes into a credible, attractive listing that helps the item sell.
-For clothing, shoes, bags, and accessories, think like an experienced secondhand fashion seller: identify brand signals, quality, fabric, cut, fit, style, trend, condition, seasonality, and likely buyer intent.
-For non-fashion items, act as a practical secondhand resale analyst: identify brand/model, condition, demand, use case, and comparable used-market value.
+CRITICAL OUTPUT FORMAT RULES:
+1. Output MUST be in PLAIN TEXT only.
+2. STRICTLY PROHIBITED: Do not use any Markdown formatting. Never use asterisks, hashtags, or bullet points.
+3. Separate every section and list item with EXACTLY two line breaks. This allows the user to copy-paste cleanly into mobile apps without text clumping together.
+4. MANDATORY LANGUAGE: You must translate and write every single section label, title, and sentence into ${languageSettings.name}.
 
-Create a natural, human, persuasive product listing based on the images, seller description, and real market evidence.
+STEP 1: REAL VISUAL ANALYSIS AND PRICING
+Scan the image carefully. Identify the exact category, brand or model only if 100% visible, material, quality cues, style, size, fit, construction details, and visible condition. Do not invent details that are not visible.
 
-Internal checklist before writing:
-- Identify the item category and subcategory, e.g. shirt, blazer, coat, sneakers, laptop, decor, accessory.
-- Look for visible brand names, logos, labels, model names, collection names, size tags, materials, care tags, hardware, stitching, texture, print, pattern, silhouette, wear, defects, and signs of quality.
-- Infer style only from visible evidence: minimalist, streetwear, classic, vintage, luxury, office, casual, sportswear, Y2K, Scandinavian, designer-inspired, capsule wardrobe, etc.
-- Decide the buyer angle: daily basic, statement piece, workwear, rare brand, good condition, premium material, current trend, versatile color, or strong price/value.
-- Research comparable real used-market listings or indexed results before pricing.
+For clothing, shoes, bags, and accessories, analyze the item like a professional secondhand fashion seller: brand strength, fabric, cut, silhouette, trend, seasonality, condition, styling potential, and buyer appeal.
 
-Rules:
-- Return only the final listing.
-- Do not chat with the user.
-- Do not say "sure", "here it is", or any assistant-like intro.
-- Inspect uploaded images carefully for visible brand names, logos, labels, tags, model names, size labels, material tags, condition, and distinctive design details.
-- Use the seller description as context only. Do not copy the seller description as the title.
-- Rewrite the marketplace title from the identified product type, visible brand/model when confident, condition, size, color, and strongest selling detail.
-- If the brand/model is visible in the image, use it in the title and price research. If it is uncertain, do not make a brand claim.
-- Do not invent details that are not visible, provided, or found in web search results.
-- Use natural, modern, direct wording that sounds like a real good seller, not a robot.
-- Avoid generic filler such as "perfect for any occasion" unless it is genuinely specific and useful.
-- Make the copy attractive but believable: no fake urgency, no exaggerated claims, no luxury wording unless the brand/material supports it.
-- Highlight real benefits, style, quality cues, fit/use case, and the apparent condition of the product.
-- For clothing, mention useful buyer details when visible or provided: size, fit/cut, color, material feel, styling occasion, condition, brand appeal, and whether it looks easy to combine.
-- Keep the title, suggested price, description, highlights, and hashtags clearly separated.
-- Always include a short marketplace title after the title label.
-- Treat used-market pricing as a primary task, not an optional detail.
-- You must use web search results as evidence for pricing. Do not price from imagination.
-- Search for real currently posted or recently indexed comparable items using the visible brand/model/product type plus the requested marketplace/channel when possible.
-- Use strong search queries in the marketplace language and English when useful, for example brand + item type + model/collection + size/material + "Vinted" + "used" + "price".
-- Prefer comparable used listings from Vinted, Marktplaats, OLX, Facebook Marketplace, eBay, Vestiaire Collective, Depop, local secondhand shops, or the brand's own retail page only as a secondary anchor.
-- Estimate price from comparable secondhand-market behavior for similar brand, category, model, size, age, visible condition, seasonality, and the requested marketplace/channel.
-- Prefer realistic resale prices for Vinted, Marktplaats, OLX, Facebook Marketplace, and local European marketplaces. Do not use new-retail pricing unless it helps anchor the used value.
-- The suggested price line must start with one exact asking price that is easy to paste into a marketplace price field, for example "EUR 18" or "€18".
-- After the exact asking price, add a short resale-market note when useful, for example "market range €15-22, quick sale €14". Keep it on the same line.
-- The Market evidence line must name at least one real comparable result you found, including source/site, listed price if visible, and a URL or source title.
-- If you cannot find the exact item, use the closest real comparable and say briefly why it is comparable.
-- If no reliable real comparable is found, write that clearly in the Market evidence line and do not pretend there was a source.
-- For luxury, collectible, electronics, or authenticity-sensitive products, be conservative and mention uncertainty briefly in the suggested price line.
-- Do not repeat the title or suggested price inside the Description section.
-- Make the Description section ready to paste into the marketplace description field: short hook first, then concrete details, then condition/style/value.
-- Keep the description compact enough for mobile shoppers to read quickly.
-- Hashtags should be relevant search terms, not random decoration.
-- Mandatory output language: ${languageSettings.name}.
-- Translate every section label and every sentence into ${languageSettings.name}, even if the seller description or marketplace name is in another language.
-- ${languageSettings.currency}
+For electronics, furniture, decor, and collectibles, analyze brand, model, use case, visible condition, demand, missing details, and resale risk.
 
-Mandatory format:
+Use web search results of comparable used items on platforms like Vinted, Marktplaats, eBay, OLX, Facebook Marketplace, Depop, Vestiaire Collective, or local secondhand shops. Do not price from imagination.
 
-${languageSettings.format}
+The pricing must be based on real currently posted or recently indexed comparable items whenever possible. Include one real comparable example in the output. If no reliable match is found, state the uncertainty conservatively instead of inventing proof.
 
-Do not skip any of those labels.
-`,
+Currency guidance for all price values: ${languageSettings.currency}
+
+Avoid generic filler words like "perfect for any occasion", "stunning", or "beautiful" unless the wording is genuinely specific and supported by the item.
+
+STEP 2: OUTPUT STRUCTURE
+Translate all labels and text to ${languageSettings.name}.
+
+${languageSettings.titleLabel}
+Create a clean, human-sounding title using brand or model only when visible, item type, key feature, and condition. Max 60 characters. No emojis.
+
+${languageSettings.priceLabel}
+${languageSettings.fastSaleLabel}: [Value] (brief 1-sentence justification)
+
+${languageSettings.fairMarketLabel}: [Value] (brief 1-sentence justification)
+
+${languageSettings.maxPriceLabel}: [Value] (brief 1-sentence justification)
+
+${languageSettings.evidenceLabel}
+Name one real comparable used-market result found in web search, including source/site, listed price if visible, and URL or source title. If the exact item was not found, name the closest real comparable and explain why it is comparable. Do not invent a source.
+
+${languageSettings.descriptionLabel}
+Write a persuasive, compact description ready to copy-paste for mobile shoppers. Start with a short hook, followed by concrete details such as size, dimensions, material, features, style, quality cues, and use case. End with the apparent condition. Do not repeat the title or prices here.
+
+${languageSettings.highlightsLabel}
+List 3 key selling points. Write them as full short sentences separated by double line breaks, not bullet points.
+
+${languageSettings.tagsLabel}
+Provide 5 relevant search keywords separated only by spaces. Do not use hashtags or the # symbol.`,
       });
 
       const response = await createListingResponse([

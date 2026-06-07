@@ -2633,7 +2633,17 @@
       "Destacados",
       "Punti forti",
     ];
-    const hashtagsLabels = ["Hashtags"];
+    const hashtagsLabels = ["Hashtags", "Tags"];
+
+    function parseListingPrice(text) {
+      return parseListingField(text, priceLabels) ||
+        parseListingBlock(text, priceLabels, [
+          ...evidenceLabels,
+          ...descriptionLabels,
+          ...highlightsLabels,
+          ...hashtagsLabels,
+        ]);
+    }
 
     function cleanListingField(value) {
       const cleaned = String(value || "").trim();
@@ -2668,7 +2678,7 @@
       const title = cleanListingField(listing.title);
       const suggestedPrice =
         cleanListingField(listing.suggestedPrice) ||
-        parseListingField(result, priceLabels);
+        parseListingPrice(result);
       const highlights = Array.isArray(listing.highlights) && listing.highlights.length
         ? listing.highlights
         : parseListingBlock(result, highlightsLabels, hashtagsLabels)
@@ -2679,7 +2689,8 @@
         ? listing.hashtags
         : parseListingBlock(result, hashtagsLabels, [])
             .split(/\s+/)
-            .filter((item) => item.startsWith("#"));
+            .map((item) => item.trim())
+            .filter(Boolean);
 
       return {
         ...listing,
