@@ -2545,15 +2545,54 @@
       upgradeButton.textContent = isPro ? t("proActive") : t("upgrade");
     }
 
+    function normalizeListingLabel(value) {
+      return String(value || "")
+        .trim()
+        .replace(/^[\s*#\[\]]+|[\s*#\[\]]+$/g, "")
+        .replace(/\*+/g, "")
+        .replace(/\s+/g, " ")
+        .toLowerCase();
+    }
+
+    function parseListingLabelLine(line) {
+      const match = String(line || "").trim().match(/^(.{2,120}?):\s*(.*)$/);
+
+      if (!match) {
+        return null;
+      }
+
+      return {
+        label: normalizeListingLabel(match[1]),
+        value: match[2].trim(),
+      };
+    }
+
     function parseListingField(text, labels) {
       const lines = String(text || "").split(/\r?\n/);
+      const labelSet = new Set(labels.map(normalizeListingLabel));
 
-      for (const line of lines) {
-        for (const label of labels) {
-          const prefix = `${label}:`;
+      for (let index = 0; index < lines.length; index += 1) {
+        const parsed = parseListingLabelLine(lines[index]);
 
-          if (line.toLowerCase().startsWith(prefix.toLowerCase())) {
-            return cleanListingField(line.slice(prefix.length));
+        if (!parsed || !labelSet.has(parsed.label)) {
+          continue;
+        }
+
+        const inlineValue = cleanListingField(parsed.value);
+
+        if (inlineValue) {
+          return inlineValue;
+        }
+
+        for (let nextIndex = index + 1; nextIndex < lines.length; nextIndex += 1) {
+          if (parseListingLabelLine(lines[nextIndex])) {
+            break;
+          }
+
+          const nextValue = cleanListingField(lines[nextIndex]);
+
+          if (nextValue) {
+            return nextValue;
           }
         }
       }
@@ -2563,20 +2602,20 @@
 
     function parseListingBlock(text, startLabels, stopLabels) {
       const lines = String(text || "").split(/\r?\n/);
-      const startSet = new Set(startLabels.map((label) => label.toLowerCase()));
-      const stopSet = new Set(stopLabels.map((label) => label.toLowerCase()));
+      const startSet = new Set(startLabels.map(normalizeListingLabel));
+      const stopSet = new Set(stopLabels.map(normalizeListingLabel));
       const output = [];
       let isCollecting = false;
 
       for (const line of lines) {
-        const labelMatch = line.trim().match(/^([^:]{2,80}):\s*(.*)$/);
-        const label = labelMatch ? labelMatch[1].trim().toLowerCase() : "";
+        const labelMatch = parseListingLabelLine(line);
+        const label = labelMatch?.label || "";
 
         if (label && startSet.has(label)) {
           isCollecting = true;
 
-          if (labelMatch[2]) {
-            output.push(labelMatch[2].trim());
+          if (labelMatch.value) {
+            output.push(labelMatch.value);
           }
 
           continue;
@@ -2596,6 +2635,7 @@
 
     const titleLabels = ["Title", "Titulo", "Titel", "Titre", "Titolo"];
     const priceLabels = [
+      "SUGGESTED RESALE PRICE",
       "Suggested resale price",
       "Used-market suggested price",
       "Market suggested price",
@@ -2621,6 +2661,7 @@
     ];
     const evidenceLabels = [
       "Market evidence",
+      "Market research",
       "Evidencia de mercado",
       "Marktbewijs",
       "Preuve de marche",
@@ -2636,13 +2677,41 @@
     const hashtagsLabels = ["Hashtags", "Tags"];
 
     function parseListingPrice(text) {
-      return parseListingField(text, priceLabels) ||
-        parseListingBlock(text, priceLabels, [
+      return parseListingBlock(text, priceLabels, [
           ...evidenceLabels,
           ...descriptionLabels,
           ...highlightsLabels,
           ...hashtagsLabels,
-        ]);
+        ]) ||
+        parseListingField(text, priceLabels);
+    }
+
+    function splitTrailingSearchTerms(text) {
+      const blocks = String(text || "")
+        .split(/\n{2,}/)
+        .map((block) => block.trim())
+        .filter(Boolean);
+
+      if (blocks.length < 2) {
+        return { description: String(text || "").trim(), searchTerms: "" };
+      }
+
+      const lastBlock = blocks[blocks.length - 1];
+      const commaTerms = lastBlock.split(",").map((term) => term.trim()).filter(Boolean);
+      const looksLikeSearchTerms =
+        !lastBlock.includes("\n") &&
+        lastBlock.length <= 220 &&
+        commaTerms.length >= 3 &&
+        !/[.!?]$/.test(lastBlock);
+
+      if (!looksLikeSearchTerms) {
+        return { description: String(text || "").trim(), searchTerms: "" };
+      }
+
+      return {
+        description: blocks.slice(0, -1).join("\n\n").trim(),
+        searchTerms: lastBlock,
+      };
     }
 
     function cleanListingField(value) {
@@ -2669,16 +2738,25 @@
 
     function normalizeListing(listing = {}, fallbackText = "") {
       const result = listing.result || fallbackText || "";
-      const description = listing.description ||
+      const parsedTitle = parseListingField(result, titleLabels);
+      const rawDescription =
         parseListingBlock(result, descriptionLabels, [
           ...evidenceLabels,
+          ...priceLabels,
           ...highlightsLabels,
           ...hashtagsLabels,
-        ]);
+        ]) ||
+        listing.description ||
+        "";
+      const descriptionParts = splitTrailingSearchTerms(rawDescription);
       const title = cleanListingField(listing.title);
-      const suggestedPrice =
-        cleanListingField(listing.suggestedPrice) ||
-        parseListingPrice(result);
+      const parsedPrice = parseListingPrice(result);
+      const marketResearch = parseListingBlock(result, evidenceLabels, []);
+      const suggestedPrice = [
+        descriptionParts.searchTerms,
+        parsedPrice || cleanListingField(listing.suggestedPrice),
+        marketResearch,
+      ].filter(Boolean).join("\n\n");
       const highlights = Array.isArray(listing.highlights) && listing.highlights.length
         ? listing.highlights
         : parseListingBlock(result, highlightsLabels, hashtagsLabels)
@@ -2696,11 +2774,12 @@
         ...listing,
         result,
         title:
-          title && title !== "Listing"
+          parsedTitle ||
+          (title && title !== "Listing"
             ? title
-            : parseListingField(result, titleLabels),
+            : ""),
         suggestedPrice,
-        description,
+        description: descriptionParts.description,
         highlights,
         hashtags,
       };
@@ -2718,18 +2797,19 @@
       }
 
       if (listing.highlights?.length) {
-        parts.push(listing.highlights.map((item) => `- ${item}`).join("\n"));
-      }
-
-      if (listing.hashtags?.length) {
-        parts.push(listing.hashtags.join(" "));
-      }
-
-      if (listing.suggestedPrice) {
-        parts.push(`${t("priceFooterLabel")}: ${listing.suggestedPrice}`);
+        parts.push(listing.highlights.join("\n\n"));
       }
 
       return parts.filter(Boolean).join("\n\n").trim() || listing.result || "";
+    }
+
+    function getCopyableCurrencyPrice(value) {
+      const text = String(value || "").trim();
+      const match =
+        text.match(/(?:EUR|USD|GBP|€|\$|£)\s*(\d{1,5}(?:[.,]\d{1,2})?)/i) ||
+        text.match(/(\d{1,5}(?:[.,]\d{1,2})?)\s*(?:EUR|USD|GBP|€|\$|£)/i);
+
+      return match ? match[1].replace(".", ",") : getCopyablePrice(text);
     }
 
     function getCopyablePrice(value) {
@@ -2764,7 +2844,8 @@
       const fullText = state.result || listing?.result || "";
 
       listingParts.classList.toggle("hidden", !hasStructuredListing);
-      fullResultHeader.classList.toggle("hidden", !hasStructuredListing || !fullText);
+      fullResultHeader.classList.add("hidden");
+      resultOutput.classList.toggle("hidden", hasStructuredListing);
       resultOutput.classList.toggle("with-parts", hasStructuredListing);
 
       if (!hasStructuredListing) {
@@ -2774,7 +2855,6 @@
       }
 
       const descriptionCopy = buildDescriptionCopy(listing);
-      setLinkedText(resultOutput, fullText || descriptionCopy || t("emptyResult"));
       listingTitleText.textContent = listing.title || t("titleNotEstimated");
       listingDescriptionText.textContent = descriptionCopy || "-";
       listingPriceText.textContent = listing.suggestedPrice || t("priceNotEstimated");
@@ -3149,7 +3229,7 @@
     });
 
     copyPriceButton.addEventListener("click", () => {
-      copyListingText(getCopyablePrice(state.currentListing?.suggestedPrice));
+      copyListingText(getCopyableCurrencyPrice(state.currentListing?.suggestedPrice));
     });
 
     vintedLink.addEventListener("click", () => {
