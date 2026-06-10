@@ -1534,6 +1534,8 @@
         resetCode: "Codigo de recuperacao",
         resetCodePlaceholder: "Codigo privado",
         forgotPassword: "Esqueci minha senha",
+        resetEmailFirst: "Digite seu email primeiro e clique em esqueci minha senha novamente.",
+        resetEmailSent: "Codigo enviado para o email cadastrado.",
         noAccount: "Ainda nao tem conta?",
         hasAccount: "Ja tem conta?",
         createAccount: "Criar conta",
@@ -1662,6 +1664,8 @@
         resetCode: "Recovery code",
         resetCodePlaceholder: "Private code",
         forgotPassword: "Forgot password",
+        resetEmailFirst: "Enter your email first, then click forgot password again.",
+        resetEmailSent: "Recovery code sent to your email.",
         noAccount: "No account yet?",
         hasAccount: "Already have an account?",
         createAccount: "Create account",
@@ -1790,6 +1794,8 @@
         resetCode: "Herstelcode",
         resetCodePlaceholder: "Privecode",
         forgotPassword: "Wachtwoord vergeten",
+        resetEmailFirst: "Vul eerst je email in en klik daarna opnieuw op wachtwoord vergeten.",
+        resetEmailSent: "Herstelcode verzonden naar je email.",
         noAccount: "Nog geen account?",
         hasAccount: "Al een account?",
         createAccount: "Account maken",
@@ -1918,6 +1924,8 @@
         resetCode: "Codigo de recuperacion",
         resetCodePlaceholder: "Codigo privado",
         forgotPassword: "Olvide mi contrasena",
+        resetEmailFirst: "Introduce primero tu email y vuelve a hacer clic en olvide mi contrasena.",
+        resetEmailSent: "Codigo de recuperacion enviado a tu email.",
         noAccount: "Todavia no tienes cuenta?",
         hasAccount: "Ya tienes cuenta?",
         createAccount: "Crear cuenta",
@@ -3101,9 +3109,33 @@
       updateAuthMode();
     });
 
-    forgotPassword.addEventListener("click", () => {
+    forgotPassword.addEventListener("click", async () => {
+      const emailInput = document.getElementById("email");
+      const email = String(emailInput?.value || "").trim();
+
       state.mode = "reset";
       updateAuthMode();
+
+      if (!email) {
+        setStatus(authStatus, t("resetEmailFirst"), "error");
+        emailInput?.focus();
+        return;
+      }
+
+      setLoading(forgotPassword, true, t("forgotPassword"), t("wait"));
+
+      try {
+        const data = await apiFetch("/auth/request-password-reset", {
+          method: "POST",
+          body: JSON.stringify({ email }),
+        });
+
+        setStatus(authStatus, t("resetEmailSent"), "success");
+      } catch (error) {
+        setStatus(authStatus, error.message, "error");
+      } finally {
+        setLoading(forgotPassword, false, t("forgotPassword"), t("wait"));
+      }
     });
 
     logoutButton.addEventListener("click", showAuth);

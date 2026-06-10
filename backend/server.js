@@ -89,12 +89,19 @@ const PRO_MONTHLY_LIMIT = Number(process.env.PRO_MONTHLY_LIMIT || 60);
 const SESSION_SECRET =
   process.env.SESSION_SECRET || "vendibot-se-quiser-aprender-aja";
 const PASSWORD_RESET_CODE = process.env.PASSWORD_RESET_CODE || "";
-const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
+const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 const OPENAI_ENABLE_WEB_SEARCH = process.env.OPENAI_ENABLE_WEB_SEARCH !== "false";
 const OPENAI_SEARCH_COUNTRY = (process.env.OPENAI_SEARCH_COUNTRY || "NL").toUpperCase();
 const APP_URL = (process.env.APP_URL || `http://localhost:${PORT}`).replace(
   /\/$/,
   "",
+);
+const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
+const EMAIL_FROM =
+  process.env.EMAIL_FROM || process.env.FROM_EMAIL || "Vendibot <onboarding@resend.dev>";
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || process.env.ADMIN_EMAIL || "";
+const PASSWORD_RESET_CODE_MINUTES = Number(
+  process.env.PASSWORD_RESET_CODE_MINUTES || 15,
 );
 const DEFAULT_ALLOWED_ORIGINS = [
   APP_URL,
@@ -191,6 +198,10 @@ if (!PASSWORD_RESET_CODE) {
   console.warn("Aviso: defina PASSWORD_RESET_CODE para recuperar senhas.");
 }
 
+if (!RESEND_API_KEY) {
+  console.warn("Aviso: defina RESEND_API_KEY para enviar emails de recuperacao e creditos.");
+}
+
 if (!WISE_PAYMENT_LINK_URL && (!WISE_ACCOUNT_HOLDER || !WISE_IBAN)) {
   console.warn(
     "Aviso: defina WISE_ACCOUNT_HOLDER e WISE_IBAN para mostrar instrucoes de pagamento.",
@@ -220,6 +231,7 @@ if (IS_PRODUCTION && !process.env.SESSION_SECRET) {
 const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null;
+
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY)
@@ -415,6 +427,19 @@ function normalizeDbUser(row) {
       checkoutAttempts: Number(row.checkout_attempts || 0),
     },
     creditsBalance: Number(row.credits_balance || 0),
+    passwordResetCodeHash: row.password_reset_code_hash || "",
+    passwordResetExpiresAt:
+      row.password_reset_expires_at instanceof Date
+        ? row.password_reset_expires_at.toISOString()
+        : row.password_reset_expires_at,
+    passwordResetRequestedAt:
+      row.password_reset_requested_at instanceof Date
+        ? row.password_reset_requested_at.toISOString()
+        : row.password_reset_requested_at,
+    freeCreditsExhaustedEmailSentAt:
+      row.free_credits_exhausted_email_sent_at instanceof Date
+        ? row.free_credits_exhausted_email_sent_at.toISOString()
+        : row.free_credits_exhausted_email_sent_at,
     stripeCustomerId: row.stripe_customer_id || "",
     stripeSubscriptionId: row.stripe_subscription_id || "",
     createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
@@ -452,6 +477,10 @@ async function initDataStore() {
       stripe_subscription_id text,
       created_at timestamptz NOT NULL DEFAULT now(),
       password_changed_at timestamptz,
+      password_reset_code_hash text,
+      password_reset_expires_at timestamptz,
+      password_reset_requested_at timestamptz,
+      free_credits_exhausted_email_sent_at timestamptz,
       updated_at timestamptz NOT NULL DEFAULT now()
     );
 
@@ -464,7 +493,11 @@ async function initDataStore() {
       ADD COLUMN IF NOT EXISTS copy_button_clicks integer NOT NULL DEFAULT 0,
       ADD COLUMN IF NOT EXISTS vinted_redirect_clicks integer NOT NULL DEFAULT 0,
       ADD COLUMN IF NOT EXISTS paywall_views integer NOT NULL DEFAULT 0,
-      ADD COLUMN IF NOT EXISTS checkout_attempts integer NOT NULL DEFAULT 0;
+      ADD COLUMN IF NOT EXISTS checkout_attempts integer NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS password_reset_code_hash text,
+      ADD COLUMN IF NOT EXISTS password_reset_expires_at timestamptz,
+      ADD COLUMN IF NOT EXISTS password_reset_requested_at timestamptz,
+      ADD COLUMN IF NOT EXISTS free_credits_exhausted_email_sent_at timestamptz;
 
     CREATE TABLE IF NOT EXISTS wise_credit_orders (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -532,8 +565,8 @@ async function initDataStore() {
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
       title text,
-      suggested_price text,
       description text,
+      suggested_price text,
       highlights jsonb NOT NULL DEFAULT '[]'::jsonb,
       hashtags text[] NOT NULL DEFAULT ARRAY[]::text[],
       marketplace text,
@@ -697,6 +730,10 @@ async function updateUser(user) {
           stripe_subscription_id = $10,
           password_changed_at = $11,
           credits_balance = $12,
+          password_reset_code_hash = $13,
+          password_reset_expires_at = $14,
+          password_reset_requested_at = $15,
+          free_credits_exhausted_email_sent_at = $16,
           updated_at = now()
       WHERE id = $1`,
     [
@@ -712,6 +749,10 @@ async function updateUser(user) {
       user.stripeSubscriptionId || null,
       user.passwordChangedAt || null,
       Number(user.creditsBalance || 0),
+      user.passwordResetCodeHash || null,
+      user.passwordResetExpiresAt || null,
+      user.passwordResetRequestedAt || null,
+      user.freeCreditsExhaustedEmailSentAt || null,
     ],
   );
 
@@ -817,23 +858,7 @@ function parseListingPrice(result) {
 }
 
 const titleLabels = ["Title", "Titulo", "Titel", "Titre", "Titolo"];
-const priceLabels = [
-  "Suggested resale price",
-  "Used-market suggested price",
-  "Market suggested price",
-  "Suggested price",
-  "Preco de mercado sugerido",
-  "Preco sugerido",
-  "Prijsadvies tweedehands",
-  "Adviesprijs",
-  "Precio sugerido de segunda mano",
-  "Precio sugerido",
-  "Prix conseille d'occasion",
-  "Prix conseillé d'occasion",
-  "Prix suggere",
-  "Prezzo usato suggerito",
-  "Prezzo suggerito",
-];
+
 const descriptionLabels = [
   "Description",
   "Descricao",
@@ -855,17 +880,35 @@ const highlightsLabels = [
   "Destacados",
   "Punti forti",
 ];
+const priceLabels = [
+  "Suggested resale price",
+  "Used-market suggested price",
+  "Market suggested price",
+  "Suggested price",
+  "Preco de mercado sugerido",
+  "Preco sugerido",
+  "Prijsadvies tweedehands",
+  "Adviesprijs",
+  "Precio sugerido de segunda mano",
+  "Precio sugerido",
+  "Prix conseille d'occasion",
+  "Prix conseillé d'occasion",
+  "Prix suggere",
+  "Prezzo usato suggerito",
+  "Prezzo suggerito",
+];
 const hashtagsLabels = ["Hashtags", "Tags"];
 const allListingSectionLabels = [
   ...titleLabels,
+  ...descriptionLabels,
   ...priceLabels,
   ...evidenceLabels,
-  ...descriptionLabels,
   ...highlightsLabels,
   ...hashtagsLabels,
 ];
 
 function safeListing(listing) {
+  const title = cleanListingField(listing.title);
   const description =
     listing.description ||
     parseListingBlock(listing.result, descriptionLabels, [
@@ -873,7 +916,7 @@ function safeListing(listing) {
       ...highlightsLabels,
       ...hashtagsLabels,
     ]);
-  const title = cleanListingField(listing.title);
+  
   const suggestedPrice =
     cleanListingField(listing.suggestedPrice) ||
     parseListingPrice(listing.result);
@@ -881,8 +924,8 @@ function safeListing(listing) {
   return {
     id: listing.id,
     title: title || parseListingField(listing.result, titleLabels),
-    suggestedPrice,
     description,
+    suggestedPrice,
     highlights:
       listing.highlights?.length
         ? listing.highlights
@@ -951,7 +994,7 @@ async function createListingRecord(user, listing) {
 
   await pool.query(
     `INSERT INTO anuncios (
-      id, user_id, title, suggested_price, description, highlights, hashtags,
+      id, user_id, title, description, suggested_price, highlights, hashtags,
       marketplace, language, source_description, result, image_count, model,
       created_at
     ) VALUES (
@@ -961,8 +1004,8 @@ async function createListingRecord(user, listing) {
       record.id,
       record.userId,
       record.title,
-      record.suggestedPrice,
       record.description,
+      record.suggestedPrice,
       JSON.stringify(record.highlights),
       record.hashtags,
       record.marketplace,
@@ -1018,6 +1061,142 @@ function verifyPassword(password, user) {
     Buffer.from(hash, "hex"),
     Buffer.from(user.passwordHash, "hex"),
   );
+}
+
+function generateEmailCode() {
+  return String(crypto.randomInt(100000, 1000000));
+}
+
+function hashEmailCode(code) {
+  return crypto
+    .createHash("sha256")
+    .update(`${String(code || "").trim()}:${SESSION_SECRET}`)
+    .digest("hex");
+}
+
+function isValidPasswordResetCode(user, code) {
+  const cleanCode = String(code || "").trim();
+
+  if (PASSWORD_RESET_CODE && cleanCode === PASSWORD_RESET_CODE) {
+    return true;
+  }
+
+  if (!user.passwordResetCodeHash || !user.passwordResetExpiresAt) {
+    return false;
+  }
+
+  if (new Date(user.passwordResetExpiresAt).getTime() < Date.now()) {
+    return false;
+  }
+
+  const expected = Buffer.from(user.passwordResetCodeHash, "hex");
+  const actual = Buffer.from(hashEmailCode(cleanCode), "hex");
+
+  return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
+}
+
+function clearPasswordResetCode(user) {
+  user.passwordResetCodeHash = "";
+  user.passwordResetExpiresAt = null;
+  user.passwordResetRequestedAt = null;
+}
+
+function escapeHtmlText(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+async function sendEmail({ to, subject, text, html }) {
+  if (!RESEND_API_KEY) {
+    console.warn("Email nao enviado: defina RESEND_API_KEY no ambiente.");
+    return false;
+  }
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: EMAIL_FROM,
+      to,
+      subject,
+      text,
+      html,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    console.error("Falha ao enviar email:", response.status, body);
+    return false;
+  }
+
+  return true;
+}
+
+async function sendPasswordResetEmail(user, code) {
+  const minutes = PASSWORD_RESET_CODE_MINUTES;
+  const safeName = escapeHtmlText(user.name || "seller");
+  const safeCode = escapeHtmlText(code);
+
+  return sendEmail({
+    to: user.email,
+    subject: "Your Vendibot password reset code",
+    text: `Hi ${user.name || "there"},\n\nYour Vendibot password reset code is ${code}.\n\nThis code expires in ${minutes} minutes.\n\nIf you did not request this, you can ignore this email.`,
+    html: `
+      <p>Hi ${safeName},</p>
+      <p>Your Vendibot password reset code is:</p>
+      <p style="font-size:24px;font-weight:700;letter-spacing:4px">${safeCode}</p>
+      <p>This code expires in ${minutes} minutes.</p>
+      <p>If you did not request this, you can ignore this email.</p>
+    `,
+  });
+}
+
+async function sendFreeCreditsExhaustedEmail(user) {
+  const buyCreditsUrl = `${APP_URL}/`;
+
+  return sendEmail({
+    to: user.email,
+    subject: "Your free Vendibot listings are finished",
+    text: `Hi ${user.name || "there"},\n\nYou have used your ${FREE_MONTHLY_LIMIT} free Vendibot listings.\n\nYou can keep creating listings by buying a small credit package inside Vendibot.\n\nOpen Vendibot: ${buyCreditsUrl}`,
+    html: `
+      <p>Hi ${escapeHtmlText(user.name || "there")},</p>
+      <p>You have used your ${FREE_MONTHLY_LIMIT} free Vendibot listings.</p>
+      <p>You can keep creating listings by buying a small credit package inside Vendibot.</p>
+      <p><a href="${escapeHtmlText(buyCreditsUrl)}">Open Vendibot</a></p>
+    `,
+  });
+}
+
+async function maybeSendFreeCreditsExhaustedEmail(user) {
+  try {
+    if (user.plan === "pro" || user.freeCreditsExhaustedEmailSentAt) {
+      return;
+    }
+
+    const usage = normalizeUsage(user);
+    const creditsBalance = Number(user.creditsBalance || 0);
+
+    if (usage.generations < FREE_MONTHLY_LIMIT || creditsBalance > 0) {
+      return;
+    }
+
+    const sent = await sendFreeCreditsExhaustedEmail(user);
+
+    if (sent) {
+      user.freeCreditsExhaustedEmailSentAt = new Date().toISOString();
+      await updateUser(user);
+    }
+  } catch (err) {
+    console.error("Falha ao enviar aviso de fim dos creditos gratis:", err);
+  }
 }
 
 function base64Url(input) {
@@ -2371,24 +2550,64 @@ app.post("/auth/login", async (req, res, next) => {
   }
 });
 
+app.post("/auth/request-password-reset", async (req, res, next) => {
+  try {
+    const email = String(req.body?.email || "").trim().toLowerCase();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      res.status(400).json({ error: "Informe um email valido." });
+      return;
+    }
+
+    if (!RESEND_API_KEY) {
+      res.status(500).json({
+        error: "Envio de email ainda nao configurado. Defina RESEND_API_KEY no Render.",
+      });
+      return;
+    }
+
+    const user = await findUserByEmail(email);
+
+    if (!user) {
+      res.json({
+        ok: true,
+        message: "Se a conta existir, enviaremos um codigo de recuperacao.",
+      });
+      return;
+    }
+
+    const code = generateEmailCode();
+    user.passwordResetCodeHash = hashEmailCode(code);
+    user.passwordResetExpiresAt = new Date(
+      Date.now() + PASSWORD_RESET_CODE_MINUTES * 60 * 1000,
+    ).toISOString();
+    user.passwordResetRequestedAt = new Date().toISOString();
+    await updateUser(user);
+
+    const sent = await sendPasswordResetEmail(user, code);
+
+    if (!sent) {
+      res.status(502).json({
+        error: "Nao consegui enviar o email agora. Tente novamente em alguns minutos.",
+      });
+      return;
+    }
+
+    res.json({
+      ok: true,
+      message: "Codigo enviado para o email cadastrado.",
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 app.post("/auth/reset-password", async (req, res, next) => {
   try {
     const validation = validateCredentials(req.body);
 
     if (validation.error) {
       res.status(400).json({ error: validation.error });
-      return;
-    }
-
-    if (!PASSWORD_RESET_CODE) {
-      res.status(500).json({
-        error: "Configure PASSWORD_RESET_CODE no .env para trocar senhas.",
-      });
-      return;
-    }
-
-    if (String(req.body.resetCode || "").trim() !== PASSWORD_RESET_CODE) {
-      res.status(403).json({ error: "Codigo de recuperacao incorreto." });
       return;
     }
 
@@ -2399,10 +2618,16 @@ app.post("/auth/reset-password", async (req, res, next) => {
       return;
     }
 
+    if (!isValidPasswordResetCode(user, req.body.resetCode)) {
+      res.status(403).json({ error: "Codigo de recuperacao incorreto ou expirado." });
+      return;
+    }
+
     const { salt, hash } = hashPassword(validation.password);
     user.passwordSalt = salt;
     user.passwordHash = hash;
     user.passwordChangedAt = new Date().toISOString();
+    clearPasswordResetCode(user);
     await updateUser(user);
 
     res.json({
@@ -2595,18 +2820,18 @@ const listingLanguageSettings = {
     name: "Brazilian Portuguese",
     currency: "Use EUR for Europe or R$ for Brazil when the context is clear.",
     titleLabel: "Titulo",
-    priceLabel: "Preco sugerido",
+    descriptionLabel: "Descricao",
     fastSaleLabel: "Preco para vender rapido",
     fairMarketLabel: "Preco justo de mercado",
+    priceLabel: "Preco sugerido",
     maxPriceLabel: "Preco maximo estimado",
     evidenceLabel: "Evidencia de mercado",
-    descriptionLabel: "Descricao",
     highlightsLabel: "Destaques",
     tagsLabel: "Tags",
     format: `Titulo:
+    Descricao:
 Preco de mercado sugerido:
 Evidencia de mercado:
-Descricao:
 Destaques:
 - item
 - item
@@ -2619,18 +2844,18 @@ Hashtags:
     name: "English",
     currency: "Use EUR for Europe, USD for the United States, or GBP for the United Kingdom when the context is clear.",
     titleLabel: "Title",
-    priceLabel: "Suggested price",
+    descriptionLabel: "Description",
     fastSaleLabel: "Fast Sale Price",
     fairMarketLabel: "Fair Market Price",
+    priceLabel: "Suggested price",
     maxPriceLabel: "Maximum Estimated Price",
     evidenceLabel: "Market evidence",
-    descriptionLabel: "Description",
     highlightsLabel: "Highlights",
     tagsLabel: "Tags",
     format: `Title:
+    Description:
 Suggested resale price:
 Market evidence:
-Description:
 Highlights:
 - item
 - item
@@ -2643,18 +2868,18 @@ Hashtags:
     name: "French",
     currency: "Use EUR unless the context clearly indicates another currency.",
     titleLabel: "Titre",
-    priceLabel: "Prix conseille",
+    descriptionLabel: "Description",
     fastSaleLabel: "Prix pour vendre rapidement",
     fairMarketLabel: "Prix juste du marche",
+    priceLabel: "Prix conseille",
     maxPriceLabel: "Prix maximum estime",
     evidenceLabel: "Preuve de marche",
-    descriptionLabel: "Description",
     highlightsLabel: "Points forts",
     tagsLabel: "Tags",
     format: `Titre:
-Prix conseille d'occasion:
+    Description:
 Preuve de marche:
-Description:
+Prix conseille d'occasion:
 Points forts:
 - item
 - item
@@ -2667,18 +2892,18 @@ Hashtags:
     name: "Dutch",
     currency: "Use EUR unless the context clearly indicates another currency.",
     titleLabel: "Titel",
+    descriptionLabel: "Beschrijving",
     priceLabel: "Prijsadvies",
     fastSaleLabel: "Snelle verkoopprijs",
     fairMarketLabel: "Eerlijke marktprijs",
     maxPriceLabel: "Maximale geschatte prijs",
     evidenceLabel: "Marktbewijs",
-    descriptionLabel: "Beschrijving",
     highlightsLabel: "Highlights",
     tagsLabel: "Tags",
     format: `Titel:
+    Beschrijving:
 Prijsadvies tweedehands:
 Marktbewijs:
-Beschrijving:
 Highlights:
 - item
 - item
@@ -2691,18 +2916,18 @@ Hashtags:
     name: "Spanish",
     currency: "Use EUR or a local currency when the context is clear.",
     titleLabel: "Titulo",
+    descriptionLabel: "Descripcion",
     priceLabel: "Precio sugerido",
     fastSaleLabel: "Precio para venta rapida",
     fairMarketLabel: "Precio justo de mercado",
     maxPriceLabel: "Precio maximo estimado",
     evidenceLabel: "Evidencia de mercado",
-    descriptionLabel: "Descripcion",
     highlightsLabel: "Destacados",
     tagsLabel: "Tags",
     format: `Titulo:
 Precio sugerido de segunda mano:
-Evidencia de mercado:
 Descripcion:
+Evidencia de mercado:
 Destacados:
 - item
 - item
@@ -2715,18 +2940,18 @@ Hashtags:
     name: "Italian",
     currency: "Use EUR unless the context clearly indicates another currency.",
     titleLabel: "Titolo",
+    descriptionLabel: "Descrizione",
     priceLabel: "Prezzo suggerito",
     fastSaleLabel: "Prezzo per vendita rapida",
     fairMarketLabel: "Prezzo equo di mercato",
     maxPriceLabel: "Prezzo massimo stimato",
     evidenceLabel: "Evidenza di mercato",
-    descriptionLabel: "Descrizione",
     highlightsLabel: "Punti forti",
     tagsLabel: "Tags",
     format: `Titolo:
+    Descrizione:
 Prezzo usato suggerito:
 Evidenza di mercato:
-Descrizione:
 Punti forti:
 - item
 - item
@@ -2765,6 +2990,7 @@ function didCompleteWebSearch(response) {
 async function createListingResponse(input) {
   const request = {
     model: OPENAI_MODEL,
+    temperature: 0.1,
     input,
   };
 
@@ -2882,56 +3108,40 @@ app.post(
         });
       }
 
-      content.push({
-        type: "input_text",
-        text: `You are a strict backend visual analyst, web-search pricing expert, and marketplace copywriter specialized in secondhand items, including clothing, electronics, furniture, decor, accessories, shoes, bags, and collectibles.
+      // Cria uma variavel de seguranca caso o canal venha da tela (frontend)
+        const currentChannel = typeof channel !== 'undefined' ? channel : (typeof req !== 'undefined' && req.body && req.body.channel ? req.body.channel : 'Marketplace');
 
-CRITICAL OUTPUT FORMAT RULES:
-1. Output MUST be in PLAIN TEXT only.
-2. STRICTLY PROHIBITED: Do not use any Markdown formatting. Never use asterisks, hashtags, or bullet points.
-3. Separate every section and list item with EXACTLY two line breaks. This allows the user to copy-paste cleanly into mobile apps without text clumping together.
-4. MANDATORY LANGUAGE: You must translate and write every single section label, title, and sentence into ${languageSettings.name}.
+        content.push({
+          type: "input_text",
+          text: `You are a high-end conversion copywriter and an elite computational expert in circular economy. Your goal is to turn random secondhand objects into irresistible desires through magnetic copywriting.
 
-STEP 1: REAL VISUAL ANALYSIS AND PRICING
-Scan the image carefully. Identify the exact category, brand or model only if 100% visible, material, quality cues, style, size, fit, construction details, and visible condition. Do not invent details that are not visible.
+CRITICAL RULES:
+1. STRICTLY PROHIBITED: Do not use asterisks (**) anywhere. Write labels exactly as plain text: TITLE:, DESCRIPTION:, and SUGGESTED RESALE PRICE:.
+2. Do not output any price or market research information inside the DESCRIPTION section. Keep them completely separated.
 
-For clothing, shoes, bags, and accessories, analyze the item like a professional secondhand fashion seller: brand strength, fabric, cut, silhouette, trend, seasonality, condition, styling potential, and buyer appeal.
+OUTPUT STRUCTURE:
 
-For electronics, furniture, decor, and collectibles, analyze brand, model, use case, visible condition, demand, missing details, and resale risk.
+TITLE:
+[Create a high-click, magnetic title optimized for ${currentChannel} SEO. Formula: Brand/Model + Product Type + Emotional Hook/Key Feature + Perfect Condition. Max 60 characters. No emojis. Do not write the word TITLE here.]
 
-Use web search results of comparable used items on platforms like Vinted, Marktplaats, eBay, OLX, Facebook Marketplace, Depop, Vestiaire Collective, or local secondhand shops. Do not price from imagination.
+DESCRIPTION:
+[Write an appetizing, persuasive, and storytelling-driven description tailored specifically to the audience of ${currentChannel}. Sell the style, look, and circular economy beauty. Use short, high-energy paragraphs.]
 
-The pricing must be based on real currently posted or recently indexed comparable items whenever possible. Include one real comparable example in the output. If no reliable match is found, state the uncertainty conservatively instead of inventing proof.
+- [Write an emotional or high-utility selling point that hooks the buyer]
+- [Write a detail about the exceptional preservation or quality of the material/item]
+- [Write a benefit about immediate shipping, readiness to use, or smart choice]
 
-Currency guidance for all price values: ${languageSettings.currency}
+[Include 5 powerful, high-traffic search tags for ${currentChannel} separated only by spaces here, without hashtags.]
 
-Avoid generic filler words like "perfect for any occasion", "stunning", or "beautiful" unless the wording is genuinely specific and supported by the item.
+SUGGESTED RESALE PRICE:
+Fast Sale: ${languageSettings.currency}[Value]
+Fair Market: ${languageSettings.currency}[Value]
+Max Price: ${languageSettings.currency}[Value]
 
-STEP 2: OUTPUT STRUCTURE
-Translate all labels and text to ${languageSettings.name}.
-
-${languageSettings.titleLabel}
-Create a clean, human-sounding title using brand or model only when visible, item type, key feature, and condition. Max 60 characters. No emojis.
-
-${languageSettings.priceLabel}
-${languageSettings.fastSaleLabel}: [Value] (brief 1-sentence justification)
-
-${languageSettings.fairMarketLabel}: [Value] (brief 1-sentence justification)
-
-${languageSettings.maxPriceLabel}: [Value] (brief 1-sentence justification)
-
-${languageSettings.evidenceLabel}
-Name one real comparable used-market result found in web search, including source/site, listed price if visible, and URL or source title. If the exact item was not found, name the closest real comparable and explain why it is comparable. Do not invent a source.
-
-${languageSettings.descriptionLabel}
-Write a persuasive, compact description ready to copy-paste for mobile shoppers. Start with a short hook, followed by concrete details such as size, dimensions, material, features, style, quality cues, and use case. End with the apparent condition. Do not repeat the title or prices here.
-
-${languageSettings.highlightsLabel}
-List 3 key selling points. Write them as full short sentences separated by double line breaks, not bullet points.
-
-${languageSettings.tagsLabel}
-Provide 5 relevant search keywords separated only by spaces. Do not use hashtags or the # symbol.`,
-      });
+MARKET RESEARCH:
+[Provide a brilliant, data-backed 1-sentence analysis. Reassure the seller why these prices are perfectly calibrated for current trends so they do not lose money.]`
+        });
+ 
 
       const response = await createListingResponse([
         {
@@ -2948,6 +3158,7 @@ Provide 5 relevant search keywords separated only by spaces. Do not use hashtags
 
       await updateUser(req.user);
       await incrementUserAnalytics(req.user, "generation_success");
+      await maybeSendFreeCreditsExhaustedEmail(req.user);
       const listing = await createListingRecord(req.user, {
         result: response.output_text,
         marketplace: cleanMarketplace,
