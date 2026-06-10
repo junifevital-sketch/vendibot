@@ -1488,6 +1488,7 @@
     const API_BASE = window.location.port === "4173" ? "http://localhost:3001" : "";
     const TOKEN_KEY = "vendibot_token";
     const UI_LANGUAGE_KEY = "vendibot_ui_language";
+    const LISTING_LANGUAGE_KEY = "vendibot_listing_language";
     const PENDING_PAYMENT_ORDER_KEY = "vendibot_pending_payment_order";
     const SUPPORTED_LANGUAGES = ["pt", "en", "fr", "es", "nl", "it"];
 
@@ -2142,6 +2143,7 @@
       mode: "login",
       token: localStorage.getItem(TOKEN_KEY),
       uiLanguage: getInitialUiLanguage(),
+      listingLanguage: getInitialListingLanguage(),
       user: null,
       result: "",
       currentListing: null,
@@ -2259,6 +2261,16 @@
       return SUPPORTED_LANGUAGES.includes(browserLanguage) ? browserLanguage : "pt";
     }
 
+    function getInitialListingLanguage() {
+      const savedLanguage = localStorage.getItem(LISTING_LANGUAGE_KEY);
+
+      if (SUPPORTED_LANGUAGES.includes(savedLanguage)) {
+        return savedLanguage;
+      }
+
+      return getInitialUiLanguage();
+    }
+
     function t(key) {
       return translations[state.uiLanguage]?.[key] || translations.pt[key] || key;
     }
@@ -2287,6 +2299,7 @@
         state.uiLanguage === "pt" ? "pt-BR" : state.uiLanguage;
       document.title = t("pageTitle");
       syncUiLanguageSelects();
+      languageSelect.value = state.listingLanguage;
 
       setText(".auth-side .brand span", t("authBrandSubtitle"));
       setText(freeBadge, t("freeBadge"));
@@ -2383,7 +2396,6 @@
     function setInterfaceLanguage(language) {
       state.uiLanguage = SUPPORTED_LANGUAGES.includes(language) ? language : "pt";
       localStorage.setItem(UI_LANGUAGE_KEY, state.uiLanguage);
-      languageSelect.value = state.uiLanguage;
       applyTranslations();
     }
 
@@ -3195,7 +3207,7 @@
       });
 
       formData.append("description", description);
-      formData.append("lang", languageSelect.value);
+      formData.append("lang", state.listingLanguage || languageSelect.value);
       formData.append("marketplace", marketplaceSelect.value);
 
       try {
@@ -3293,7 +3305,10 @@
     });
 
     languageSelect.addEventListener("change", () => {
-      setInterfaceLanguage(languageSelect.value);
+      state.listingLanguage = SUPPORTED_LANGUAGES.includes(languageSelect.value)
+        ? languageSelect.value
+        : state.uiLanguage;
+      localStorage.setItem(LISTING_LANGUAGE_KEY, state.listingLanguage);
     });
 
     demoBeforeButton.addEventListener("click", () => {
