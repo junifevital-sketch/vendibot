@@ -1352,7 +1352,7 @@
 
           <div class="grid-two">
             <div class="field">
-              <label for="language">Idioma</label>
+              <label for="language">Traduzir anuncio para</label>
               <select id="language" class="input" name="language">
                 <option value="pt">🇵🇹 Portugues</option>
                 <option value="en">🇬🇧 English</option>
@@ -1488,7 +1488,6 @@
     const API_BASE = window.location.port === "4173" ? "http://localhost:3001" : "";
     const TOKEN_KEY = "vendibot_token";
     const UI_LANGUAGE_KEY = "vendibot_ui_language";
-    const LISTING_LANGUAGE_KEY = "vendibot_listing_language";
     const PENDING_PAYMENT_ORDER_KEY = "vendibot_pending_payment_order";
     const SUPPORTED_LANGUAGES = ["pt", "en", "fr", "es", "nl", "it"];
 
@@ -2022,7 +2021,7 @@
         free_badge: "🎁 Você ganhou 5 anúncios gratuitos para testar agora.",
         cta_button: "Começar a Criar",
         drop_zone: "Solte sua foto aqui",
-        target_lang_label: "Em qual idioma você quer vender?",
+        target_lang_label: "Traduzir anuncio para",
         paywall_title: "Transforme roupas paradas em dinheiro vivo! 💸",
         paywall_text: "Você já usou seus 5 anúncios gratuitos. Sabia que um armário cheio de desapegos pode valer mais de €300? Não deixe a preguiça de escrever te fazer perder dinheiro.",
         tier_1: "⚡ 10 Anúncios por €3 (Apenas €0,30 por desapego perfeito)",
@@ -2038,7 +2037,7 @@
         free_badge: "🎁 You’ve received 5 free listings to try right now.",
         cta_button: "Start Creating",
         drop_zone: "Drop your photo here",
-        target_lang_label: "In which language do you want to sell?",
+        target_lang_label: "Translate listing to",
         paywall_title: "Turn cluttered closets into extra cash! 💸",
         paywall_text: "You’ve used your 5 free listings. Did you know the average unused wardrobe holds over €300 in value? Don't let the hassle of writing stop you from selling.",
         tier_1: "⚡ 10 Listings for €3 (Only €0,30 per perfect post)",
@@ -2054,7 +2053,7 @@
         free_badge: "🎁 Profitez de 5 annonces gratuites pour tester dès maintenant.",
         cta_button: "Commencer",
         drop_zone: "Déposez votre photo ici",
-        target_lang_label: "Dans quelle langue voulez-vous vendre ?",
+        target_lang_label: "Traduire l'annonce en",
         paywall_title: "Transformez vos vêtements d'occasion en argent liquide ! 💸",
         paywall_text: "Vous avez utilisé vos 5 annonces gratuites. Saviez-vous qu'un dressing inutilisé vaut en moyenne plus de 300 € ? Ne laissez pas la flemme d'écrire vous priver de cet argent.",
         tier_1: "⚡ 10 Annonces pour 3 € (Seulement 0,30 € par annonce parfaite)",
@@ -2070,7 +2069,7 @@
         free_badge: "🎁 Tienes 5 anuncios gratis para probar ahora mismo.",
         cta_button: "Empezar a Crear",
         drop_zone: "Arrastra tu foto aquí",
-        target_lang_label: "¿En qué idioma quieres vender?",
+        target_lang_label: "Traducir anuncio a",
         paywall_title: "¡Transforma tu ropa usada en dinero en efectivo! 💸",
         paywall_text: "Ya has usado tus 5 anuncios gratuitos. ¿Sabías que un armario lleno de ropa sin usar puede verter más de 300€? No dejes que la pereza de escribir te haga perder dinero.",
         tier_1: "⚡ 10 Anuncios por 3€ (Solo 0,30€ por anuncio perfecto)",
@@ -2086,7 +2085,7 @@
         free_badge: "🎁 Je hebt 5 gratis advertenties gekregen om nu te proberen.",
         cta_button: "Nu Starten",
         drop_zone: "Zet je foto hier neer",
-        target_lang_label: "In welke taal wil je verkopen?",
+        target_lang_label: "Advertentie vertalen naar",
         paywall_title: "Verander ongebruikte kleding in direct geld! 💸",
         paywall_text: "Je hebt je 5 gratis advertenties gebruikt. Wist je dat een ongebruikte kledingkast gemiddeld meer dan €300 waard is? Laat de moeite van het schrijven je er niet van weerhouden om te verkopen.",
         tier_1: "⚡ 10 Advertenties voor €3 (Slechts €0,30 per perfecte advertentie)",
@@ -2102,7 +2101,7 @@
         free_badge: "🎁 Hai 5 annunci gratuiti per provare subito.",
         cta_button: "Inizia a Creare",
         drop_zone: "Trascina la tua foto qui",
-        target_lang_label: "In quale lingua vuoi vendere?",
+        target_lang_label: "Traduci annuncio in",
         paywall_title: "Trasforma i vestiti che non usi in soldi contanti! 💸",
         paywall_text: "Hai esaurito i tuoi 5 annunci gratuiti. Sapevi che un armadio pieno di vestiti inutilizzati può valere più di 300€? Non lasciare che la pigrizia di scrivere ti faccia perdere un guadagno.",
         tier_1: "⚡ 10 Annunci a 3€ (Solo 0,30€ per un annuncio perfetto)",
@@ -2262,12 +2261,6 @@
     }
 
     function getInitialListingLanguage() {
-      const savedLanguage = localStorage.getItem(LISTING_LANGUAGE_KEY);
-
-      if (SUPPORTED_LANGUAGES.includes(savedLanguage)) {
-        return savedLanguage;
-      }
-
       return getInitialUiLanguage();
     }
 
@@ -2397,7 +2390,6 @@
       state.uiLanguage = SUPPORTED_LANGUAGES.includes(language) ? language : "pt";
       state.listingLanguage = state.uiLanguage;
       localStorage.setItem(UI_LANGUAGE_KEY, state.uiLanguage);
-      localStorage.setItem(LISTING_LANGUAGE_KEY, state.listingLanguage);
       applyTranslations();
     }
 
@@ -3310,7 +3302,6 @@
       state.listingLanguage = SUPPORTED_LANGUAGES.includes(languageSelect.value)
         ? languageSelect.value
         : state.uiLanguage;
-      localStorage.setItem(LISTING_LANGUAGE_KEY, state.listingLanguage);
     });
 
     demoBeforeButton.addEventListener("click", () => {
