@@ -2395,7 +2395,9 @@
 
     function setInterfaceLanguage(language) {
       state.uiLanguage = SUPPORTED_LANGUAGES.includes(language) ? language : "pt";
+      state.listingLanguage = state.uiLanguage;
       localStorage.setItem(UI_LANGUAGE_KEY, state.uiLanguage);
+      localStorage.setItem(LISTING_LANGUAGE_KEY, state.listingLanguage);
       applyTranslations();
     }
 
