@@ -20,11 +20,15 @@
       --ink: #14181f;
       --muted: #657083;
       --line: #d9dee7;
-      --brand: #126c63;
-      --brand-dark: #0b4d47;
-      --accent: #e8b84e;
+      --brand: #2563eb;
+      --brand-dark: #1d4ed8;
+      --brand-alt: #8b5cf6;
+      --brand-pop: #ec4899;
+      --brand-glow: rgba(139, 92, 246, 0.24);
+      --brand-gradient: linear-gradient(135deg, #2563eb 0%, #14b8a6 34%, #8b5cf6 68%, #ec4899 100%);
+      --accent: #facc15;
       --danger: #b42318;
-      --success: #087443;
+      --success: #2563eb;
       --shadow: 0 18px 50px rgba(20, 24, 31, 0.12);
       --radius: 8px;
     }
@@ -78,11 +82,12 @@
       width: 42px;
       height: 42px;
       border-radius: var(--radius);
-      background: var(--accent);
-      color: #1e1a10;
+      background: var(--brand-gradient);
+      color: #ffffff;
       display: grid;
       place-items: center;
       font-weight: 900;
+      box-shadow: 0 12px 28px rgba(37, 99, 235, 0.28);
     }
 
     .brand h1 {
@@ -240,7 +245,7 @@
     .textarea:focus,
     .file-drop:focus-within {
       border-color: var(--brand);
-      box-shadow: 0 0 0 4px rgba(18, 108, 99, 0.14);
+      box-shadow: 0 0 0 4px var(--brand-glow);
       background: #fff;
     }
 
@@ -268,8 +273,8 @@
       border-radius: var(--radius);
       display: grid;
       place-items: center;
-      color: var(--brand);
-      background: rgba(18, 108, 99, 0.1);
+      color: #fff;
+      background: var(--brand-gradient);
       font-weight: 900;
     }
 
@@ -326,17 +331,18 @@
     }
 
     .btn:focus-visible {
-      outline: 4px solid rgba(18, 108, 99, 0.22);
+      outline: 4px solid var(--brand-glow);
       outline-offset: 2px;
     }
 
     .btn-primary {
-      background: var(--brand);
+      background: var(--brand-gradient);
       color: #fff;
+      box-shadow: 0 14px 28px rgba(37, 99, 235, 0.2);
     }
 
     .btn-primary:hover {
-      background: var(--brand-dark);
+      background: linear-gradient(135deg, #1d4ed8 0%, #0ea5e9 34%, #7c3aed 68%, #db2777 100%);
     }
 
     .btn-secondary {
@@ -392,7 +398,7 @@
     .meter-bar {
       width: 0%;
       height: 100%;
-      background: var(--brand);
+      background: var(--brand-gradient);
       transition: width 0.2s ease;
     }
 
@@ -659,13 +665,14 @@
     .hero-cta {
       width: fit-content;
       margin-top: 18px;
-      background: var(--accent);
-      color: #1e1a10;
+      background: var(--brand-gradient);
+      color: #fff;
       border-color: transparent;
+      box-shadow: 0 16px 34px rgba(139, 92, 246, 0.28);
     }
 
     .hero-cta:hover {
-      background: #f0c766;
+      background: linear-gradient(135deg, #1d4ed8 0%, #0ea5e9 34%, #7c3aed 68%, #db2777 100%);
     }
 
     .hero-product-image {
@@ -723,8 +730,8 @@
     }
 
     .demo-tab.is-active {
-      background: var(--accent);
-      color: #1e1a10;
+      background: var(--brand-gradient);
+      color: #fff;
     }
 
     .demo-product-stack {
@@ -749,8 +756,8 @@
       display: grid;
       place-items: center;
       border-radius: var(--radius);
-      background: rgba(232, 184, 78, 0.18);
-      color: #f7d889;
+      background: rgba(139, 92, 246, 0.2);
+      color: #e9ddff;
       font-size: 1.45rem;
     }
 
@@ -806,7 +813,7 @@
       width: max-content;
       padding: 7px 10px;
       border-radius: 999px;
-      background: rgba(18, 108, 99, 0.92);
+      background: var(--brand-gradient);
       color: #fff;
       font-size: 0.78rem;
       font-weight: 900;
@@ -843,7 +850,7 @@
     .typing-lines span {
       height: 10px;
       border-radius: 999px;
-      background: linear-gradient(90deg, #e8b84e, #ffffff, #77d3c8);
+      background: linear-gradient(90deg, #2563eb, #14b8a6, #8b5cf6, #ec4899);
       background-size: 220% 100%;
       animation: typingGlow 2.2s linear infinite;
     }
@@ -893,7 +900,7 @@
       flex-direction: column;
       justify-content: space-between;
       background:
-        linear-gradient(135deg, rgba(18, 108, 99, 0.42), rgba(232, 184, 78, 0.14)),
+        linear-gradient(135deg, rgba(37, 99, 235, 0.42), rgba(139, 92, 246, 0.32), rgba(236, 72, 153, 0.16)),
         #121820;
     }
 
@@ -940,7 +947,7 @@
 
       45% {
         transform: translateY(-3px);
-        background: rgba(18, 108, 99, 0.38);
+        background: rgba(139, 92, 246, 0.38);
       }
     }
 
