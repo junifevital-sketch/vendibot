@@ -1395,7 +1395,7 @@
             </div>
             <div class="result-actions">
               <button id="copyButton" class="btn btn-secondary" type="button" disabled>Copy</button>
-              <a id="vintedLink" class="btn btn-secondary vinted-link" href="https://www.vinted.com/" target="_blank" rel="noopener noreferrer">Go to Vinted ➡️</a>
+              <a id="vintedLink" class="btn btn-secondary vinted-link hidden" href="#" target="_blank" rel="noopener noreferrer">Open marketplace ➡️</a>
             </div>
           </div>
           <div id="listingParts" class="listing-parts hidden">
@@ -1490,13 +1490,19 @@
     const UI_LANGUAGE_KEY = "vendibot_ui_language";
     const PENDING_PAYMENT_ORDER_KEY = "vendibot_pending_payment_order";
     const SUPPORTED_LANGUAGES = ["pt", "en", "fr", "es", "nl", "it"];
+    const MARKETPLACE_URLS = {
+      Vinted: "https://www.vinted.com/",
+      OLX: "https://www.olx.com/",
+      "Facebook Marketplace": "https://www.facebook.com/marketplace/",
+      Marktplaats: "https://www.marktplaats.nl/",
+    };
 
     const translations = {
       pt: {
         pageTitle: "Vendibot - Gerador de Anuncios",
         authBrandSubtitle: "Marketplace listing studio",
-        heroTitle: "Anuncios melhores em poucos segundos.",
-        heroSubtitle: "Veja o Vendibot transformar uma foto simples de produto em um anuncio pronto para vender.",
+        heroTitle: "Crie anuncios para vender em marketplaces.",
+        heroSubtitle: "Envie fotos e receba titulo, descricao e preco sugerido em blocos separados.",
         heroNote: "Teste gratis com 5 anuncios. Depois, compre creditos avulsos com pagamento seguro.",
         demoBefore: "Antes",
         demoAfter: "Depois",
@@ -1504,7 +1510,7 @@
         demoBeforeTitle: "Antes",
         demoBeforeText: "Foto solta, descricao curta e nenhuma ideia clara de preco ou destaque.",
         demoAfterTitle: "Depois",
-        demoAfterText: "Titulo, descricao, beneficios e hashtags em um texto pronto para publicar.",
+        demoAfterText: "Titulo, descricao, preco sugerido e palavras-chave em blocos prontos para copiar.",
         demoStepUpload: "Upload",
         demoStepAnalyze: "IA analisa",
         demoStepWrite: "Texto pronto",
@@ -1578,12 +1584,12 @@
         copyDescription: "Copiar descricao",
         copyPrice: "Copiar preco",
         titlePart: "Titulo",
-        descriptionPart: "Descricao para Vinted",
+        descriptionPart: "Descricao do anuncio",
         pricePart: "Preco de mercado sugerido",
         priceFooterLabel: "Preco de mercado sugerido",
         fullResultPart: "Texto completo",
         titleNotEstimated: "Revisar titulo",
-        priceNotEstimated: "Definir na Vinted",
+        priceNotEstimated: "Revisar preco",
         emptyResult: "Seu anuncio aparecera aqui.",
         analyzing: "Analisando produto e preparando anuncio...",
         generated: "Anuncio gerado com sucesso.",
@@ -1625,8 +1631,8 @@
       en: {
         pageTitle: "Vendibot - Listing Generator",
         authBrandSubtitle: "Marketplace listing studio",
-        heroTitle: "Better listings in seconds.",
-        heroSubtitle: "Watch Vendibot turn a simple product photo into a ready-to-publish sales listing.",
+        heroTitle: "Create listings for any marketplace.",
+        heroSubtitle: "Upload photos and get a title, description, and suggested price in separate blocks.",
         heroNote: "Try 5 listings for free. Then buy credit packs with secure payment.",
         demoBefore: "Before",
         demoAfter: "After",
@@ -1634,7 +1640,7 @@
         demoBeforeTitle: "Before",
         demoBeforeText: "A loose photo, short notes, and no clear price or selling angle yet.",
         demoAfterTitle: "After",
-        demoAfterText: "Title, description, benefits, and hashtags in a ready-to-post listing.",
+        demoAfterText: "Title, description, suggested price, and keywords in copy-ready blocks.",
         demoStepUpload: "Upload",
         demoStepAnalyze: "AI scans",
         demoStepWrite: "Copy ready",
@@ -1708,12 +1714,12 @@
         copyDescription: "Copy description",
         copyPrice: "Copy price",
         titlePart: "Title",
-        descriptionPart: "Vinted description",
+        descriptionPart: "Listing description",
         pricePart: "Suggested resale price",
         priceFooterLabel: "Suggested resale price",
         fullResultPart: "Full generated text",
         titleNotEstimated: "Review title",
-        priceNotEstimated: "Set in Vinted",
+        priceNotEstimated: "Review price",
         emptyResult: "Your listing will appear here.",
         analyzing: "Analyzing product and preparing listing...",
         generated: "Listing generated successfully.",
@@ -1838,12 +1844,12 @@
         copyDescription: "Beschrijving kopieren",
         copyPrice: "Prijs kopieren",
         titlePart: "Titel",
-        descriptionPart: "Vinted-beschrijving",
+        descriptionPart: "Advertentiebeschrijving",
         pricePart: "Prijsadvies tweedehands",
         priceFooterLabel: "Prijsadvies tweedehands",
         fullResultPart: "Volledige tekst",
         titleNotEstimated: "Titel controleren",
-        priceNotEstimated: "Instellen in Vinted",
+        priceNotEstimated: "Prijs controleren",
         emptyResult: "Je advertentie verschijnt hier.",
         analyzing: "Product analyseren en advertentie voorbereiden...",
         generated: "Advertentie succesvol gegenereerd.",
@@ -1968,12 +1974,12 @@
         copyDescription: "Copiar descripcion",
         copyPrice: "Copiar precio",
         titlePart: "Titulo",
-        descriptionPart: "Descripcion para Vinted",
+        descriptionPart: "Descripcion del anuncio",
         pricePart: "Precio sugerido de segunda mano",
         priceFooterLabel: "Precio sugerido de segunda mano",
         fullResultPart: "Texto completo",
         titleNotEstimated: "Revisar titulo",
-        priceNotEstimated: "Definir en Vinted",
+        priceNotEstimated: "Revisar precio",
         emptyResult: "Tu anuncio aparecera aqui.",
         analyzing: "Analizando producto y preparando anuncio...",
         generated: "Anuncio generado con exito.",
@@ -2016,8 +2022,8 @@
 
     const onboardingTranslations = {
       pt: {
-        hero_title: "O jeito mais rápido de vender seus desapegos na Europa 🚀",
-        hero_subtitle: "Tire uma foto, escolha o idioma de destino e deixe nossa IA criar o anúncio perfeito com preço e hashtags. Copie, cole na Vinted e lucre!",
+        hero_title: "Crie anúncios para vender em qualquer marketplace 🚀",
+        hero_subtitle: "Envie fotos, escolha o idioma do anúncio e receba título, descrição e preço sugerido em blocos separados para copiar.",
         free_badge: "🎁 Você ganhou 5 anúncios gratuitos para testar agora.",
         cta_button: "Começar a Criar",
         drop_zone: "Solte sua foto aqui",
@@ -2028,12 +2034,13 @@
         tier_2: "🔥 30 Anúncios por €7 (Mais vendido - Economize 22%)",
         tier_3: "🚀 60 Anúncios por €9 (Melhor valor - Apenas €0,15 por anúncio)",
         paywall_cta: "Liberar Meus Anúncios",
-        copied_feedback: "Anúncio copiado! Usuários que usam nossas descrições vendem até 4x mais rápido na Vinted.",
-        vinted_link: "Ir para a Vinted ➡️",
+        copied_feedback: "Anúncio copiado! Agora cole o bloco certo no marketplace que você usa.",
+        vinted_link: "Abrir marketplace ➡️",
+        open_marketplace_prefix: "Abrir",
       },
       en: {
-        hero_title: "The fastest way to sell your secondhand items in Europe 🚀",
-        hero_subtitle: "Take a photo, pick your target language, and let our AI build the perfect listing with pricing and hashtags. Copy, paste onto Vinted, and profit!",
+        hero_title: "Create listings for any marketplace 🚀",
+        hero_subtitle: "Upload photos, choose the listing language, and get a title, description, and suggested price in separate copy-ready blocks.",
         free_badge: "🎁 You’ve received 5 free listings to try right now.",
         cta_button: "Start Creating",
         drop_zone: "Drop your photo here",
@@ -2044,12 +2051,13 @@
         tier_2: "🔥 30 Listings for €7 (Most Popular - Save 22%)",
         tier_3: "🚀 60 Listings for €9 (Best Value - Only €0,15 per post)",
         paywall_cta: "Unlock My Listings",
-        copied_feedback: "Listing copied! Users who use our descriptions sell up to 4x faster on Vinted.",
-        vinted_link: "Go to Vinted ➡️",
+        copied_feedback: "Listing copied! Now paste the right block into the marketplace you use.",
+        vinted_link: "Open marketplace ➡️",
+        open_marketplace_prefix: "Open",
       },
       fr: {
-        hero_title: "La méthode la plus rapide pour vendre vos articles d'occasion en Europe 🚀",
-        hero_subtitle: "Prenez une photo, choisissez la langue cible et laissez notre IA créer l'annonce parfaite avec prix et hashtags. Copiez, collez sur Vinted et encaissez !",
+        hero_title: "Créez des annonces pour tous vos marketplaces 🚀",
+        hero_subtitle: "Ajoutez des photos, choisissez la langue de l'annonce et recevez un titre, une description et un prix suggéré en blocs séparés.",
         free_badge: "🎁 Profitez de 5 annonces gratuites pour tester dès maintenant.",
         cta_button: "Commencer",
         drop_zone: "Déposez votre photo ici",
@@ -2060,12 +2068,13 @@
         tier_2: "🔥 30 Annonces pour 7 € (Le plus populaire - Économisez 22%)",
         tier_3: "🚀 60 Annonces pour 9 € (Meilleure offre - Seulement 0,15 € par annonce)",
         paywall_cta: "Débloquer mes annonces",
-        copied_feedback: "Annonce copiée ! Les vendeurs qui utilisent nos descriptions vendent jusqu'à 4x plus vite sur Vinted.",
-        vinted_link: "Aller sur Vinted ➡️",
+        copied_feedback: "Annonce copiée ! Collez maintenant le bon bloc dans le marketplace que vous utilisez.",
+        vinted_link: "Ouvrir le marketplace ➡️",
+        open_marketplace_prefix: "Ouvrir",
       },
       es: {
-        hero_title: "La forma más rápida de vender tu ropa usada en Europa 🚀",
-        hero_subtitle: "Haz una foto, elige el idioma de destino y deja que nuestra IA cree el anuncio perfecto con precio y hashtags. ¡Copia, pega en Vinted y gana dinero!",
+        hero_title: "Crea anuncios para cualquier marketplace 🚀",
+        hero_subtitle: "Sube fotos, elige el idioma del anuncio y recibe título, descripción y precio sugerido en bloques separados.",
         free_badge: "🎁 Tienes 5 anuncios gratis para probar ahora mismo.",
         cta_button: "Empezar a Crear",
         drop_zone: "Arrastra tu foto aquí",
@@ -2076,12 +2085,13 @@
         tier_2: "🔥 30 Anuncios por 7€ (El más vendido - Ahorra un 22%)",
         tier_3: "🚀 60 Anuncios por 9€ (Mejor valor - Solo 0,15€ por anuncio)",
         paywall_cta: "Desbloquear mis anuncios",
-        copied_feedback: "¡Anuncio copiado! Los usuarios que usan nuestras descripciones venden hasta 4 veces más rápido en Vinted.",
-        vinted_link: "Ir a Vinted ➡️",
+        copied_feedback: "¡Anuncio copiado! Ahora pega el bloque correcto en el marketplace que usas.",
+        vinted_link: "Abrir marketplace ➡️",
+        open_marketplace_prefix: "Abrir",
       },
       nl: {
-        hero_title: "De snelste manier om je tweedehands spullen te verkopen in Europa 🚀",
-        hero_subtitle: "Maak een foto, kies je doeltaal en laat onze AI de perfecte advertentie maken inclusief prijs en hashtags. Kopieer, plak op Vinted en verdien direct!",
+        hero_title: "Maak advertenties voor elke marketplace 🚀",
+        hero_subtitle: "Upload foto's, kies de advertentietaal en krijg titel, beschrijving en prijsadvies in losse blokken.",
         free_badge: "🎁 Je hebt 5 gratis advertenties gekregen om nu te proberen.",
         cta_button: "Nu Starten",
         drop_zone: "Zet je foto hier neer",
@@ -2092,12 +2102,13 @@
         tier_2: "🔥 30 Advertenties voor €7 (Meest gekozen - Bespaar 22%)",
         tier_3: "🚀 60 Advertenties voor €9 (Beste deal - Slechts €0,15 per advertentie)",
         paywall_cta: "Ontgrendel mijn advertenties",
-        copied_feedback: "Advertentie gekopieerd! Gebruikers die onze beschrijvingen gebruiken, verkopen tot 4 keer sneller op Vinted.",
-        vinted_link: "Ga naar Vinted ➡️",
+        copied_feedback: "Advertentie gekopieerd! Plak nu het juiste blok in de marketplace die je gebruikt.",
+        vinted_link: "Marketplace openen ➡️",
+        open_marketplace_prefix: "Open",
       },
       it: {
-        hero_title: "Il modo più veloce per vendere i tuoi articoli usati in Europa 🚀",
-        hero_subtitle: "Scatta una foto, scegli la lingua di destinazione e lascia che la nostra IA crei l'annuncio perfetto con prezzo e hashtag. Copia, incolla su Vinted e guadagna!",
+        hero_title: "Crea annunci per qualsiasi marketplace 🚀",
+        hero_subtitle: "Carica le foto, scegli la lingua dell'annuncio e ricevi titolo, descrizione e prezzo suggerito in blocchi separati.",
         free_badge: "🎁 Hai 5 annunci gratuiti per provare subito.",
         cta_button: "Inizia a Creare",
         drop_zone: "Trascina la tua foto qui",
@@ -2108,8 +2119,9 @@
         tier_2: "🔥 30 Annunci a 7€ (Il più venduto - Risparmia il 22%)",
         tier_3: "🚀 60 Annunci a 9€ (Miglior valore - Solo 0,15€ per annuncio)",
         paywall_cta: "Sblocca i miei annunci",
-        copied_feedback: "Annuncio copiato! Gli utenti che usano le nostre descrizioni vendono fino a 4 volte più velocemente su Vinted.",
-        vinted_link: "Vai su Vinted ➡️",
+        copied_feedback: "Annuncio copiato! Ora incolla il blocco giusto nel marketplace che usi.",
+        vinted_link: "Apri marketplace ➡️",
+        open_marketplace_prefix: "Apri",
       },
     };
 
@@ -2135,6 +2147,7 @@
         startPro: translations[language].paywall_cta,
         copied: translations[language].copied_feedback,
         vintedLink: translations[language].vinted_link,
+        openMarketplacePrefix: translations[language].open_marketplace_prefix || "Open",
       });
     }
 
@@ -2357,7 +2370,7 @@
       setText(copyTitleButton, t("copyTitle"));
       setText(copyDescriptionButton, t("copyDescription"));
       setText(copyPriceButton, t("copyPrice"));
-      setText(vintedLink, t("vintedLink"));
+      updateMarketplaceLink();
       setText(historyTitle, t("historyTitle"));
       setText(historySubtitle, t("historySubtitle"));
       setText(refreshHistoryButton, t("refresh"));
@@ -2391,6 +2404,22 @@
       state.listingLanguage = state.uiLanguage;
       localStorage.setItem(UI_LANGUAGE_KEY, state.uiLanguage);
       applyTranslations();
+    }
+
+    function updateMarketplaceLink() {
+      const selectedMarketplace = marketplaceSelect.value;
+      const marketplaceUrl = MARKETPLACE_URLS[selectedMarketplace];
+
+      vintedLink.classList.toggle("hidden", !marketplaceUrl);
+
+      if (!marketplaceUrl) {
+        vintedLink.href = "#";
+        vintedLink.textContent = t("vintedLink");
+        return;
+      }
+
+      vintedLink.href = marketplaceUrl;
+      vintedLink.textContent = `${t("openMarketplacePrefix")} ${selectedMarketplace} ➡️`;
     }
 
     function setDemoMode(mode) {
@@ -3302,6 +3331,10 @@
       state.listingLanguage = SUPPORTED_LANGUAGES.includes(languageSelect.value)
         ? languageSelect.value
         : state.uiLanguage;
+    });
+
+    marketplaceSelect.addEventListener("change", () => {
+      updateMarketplaceLink();
     });
 
     demoBeforeButton.addEventListener("click", () => {
